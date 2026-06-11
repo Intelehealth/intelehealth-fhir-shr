@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping package="org.openmrs.module.ihshr.synclog">
+	<class name="IntelehealthShrSyncLog" table="intelehealth_shr_sync_log">
+		<id name="id" type="long" column="id">
+			<generator class="native"/>
+		</id>
+		<property name="visitUuid" type="string" column="visit_uuid" not-null="true"/>
+		<property name="triggerEncounterUuid" type="string" column="trigger_encounter_uuid" not-null="true"/>
+		<property name="attemptNumber" type="int" column="attempt_number" not-null="true"/>
+		<property name="requestBundle" type="binary" column="request_bundle"/>
+		<property name="responseBundle" type="binary" column="response_bundle"/>
+		<property name="shrBundleId" type="string" column="shr_bundle_id"/>
+		<property name="status" column="status" not-null="true">
+			<type name="org.hibernate.type.EnumType">
+				<param name="enumClass">org.openmrs.module.ihshr.synclog.ShrSyncLogStatus</param>
+				<param name="type">12</param>
+			</type>
+		</property>
+		<property name="failureReason" type="text" column="failure_reason"/>
+		<property name="httpStatusCode" type="integer" column="http_status_code"/>
+		<property name="startedAt" type="timestamp" column="started_at" not-null="true"/>
+		<property name="completedAt" type="timestamp" column="completed_at"/>
+		<property name="nextRetryAt" type="timestamp" column="next_retry_at"/>
+		<property name="resourceMap" type="text" column="resource_map"/>
+		<property name="createdAt" type="timestamp" column="created_at" not-null="true"/>
+		<property name="updatedAt" type="timestamp" column="updated_at" not-null="true"/>
+	</class>
+</hibernate-mapping>

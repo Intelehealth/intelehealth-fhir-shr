@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<module configVersion="1.2">
+
+	<id>ihshr</id>
+	<name>IHSHR Module</name>
+	<version>${project.parent.version}</version>
+	<package>org.openmrs.module.ihshr</package>
+	<author>proshanto</author>
+	<description>
+		Shared Health Record (SHR) integration module for OpenMRS FHIR2.
+	</description>
+
+	<activator>org.openmrs.module.ihshr.IhshrModuleActivator</activator>
+
+	<require_version>${openmrsPlatformVersion}</require_version>
+
+	<require_modules>
+		<require_module>org.openmrs.module.webservices.rest</require_module>
+		<require_module>org.openmrs.module.fhir2</require_module>
+		<require_module>org.openmrs.module.ihmodule</require_module>
+		<require_module>org.openmrs.event</require_module>
+	</require_modules>
+
+	<mappingFiles>
+		ihshrUnmappedTerm.hbm.xml
+		intelehealthShrSyncLog.hbm.xml
+	</mappingFiles>
+
+	<globalProperty>
+		<property>ihshr.resource.location.import</property>
+		<defaultValue>LOCATION_IMPORT</defaultValue>
+		<description>Marker name for location import sync (IHSHR).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.resource.location.export</property>
+		<defaultValue>LOCATION_EXPORT</defaultValue>
+		<description>Marker name for location export sync (IHSHR).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.resource.patient.export</property>
+		<defaultValue>PATIENT</defaultValue>
+		<description>Marker name for patient export sync (IHSHR).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.resource.practitioner.export</property>
+		<defaultValue>PRACTITIONER</defaultValue>
+		<description>Marker name for practitioner export sync (IHSHR).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.resource.encounter.export</property>
+		<defaultValue>ENCOUNTER</defaultValue>
+		<description>Marker name for encounter export sync (IHSHR).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.resource.observation.export</property>
+		<defaultValue>OBSERVATION</defaultValue>
+		<description>Marker name for observation export sync (IHSHR).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.resource.medication.export</property>
+		<defaultValue>MEDICATION</defaultValue>
+		<description>Marker name for medication export sync (IHSHR).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.resource.medication.request.export</property>
+		<defaultValue>MEDICATION_REQUEST</defaultValue>
+		<description>Marker name for medication request export sync (IHSHR).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.resource.service.request.export</property>
+		<defaultValue>SERVICE_REQUEST</defaultValue>
+		<description>Marker name for service request export sync (IHSHR).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.resource.diagnostic.report.export</property>
+		<defaultValue>DIAGNOSTIC_REPORT</defaultValue>
+		<description>Marker name for diagnostic report export sync (IHSHR).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.local.openmrs.url</property>
+		<defaultValue>http://192.168.19.152:8080/openmrs</defaultValue>
+		<description>Local OpenMRS base URL (no trailing slash). Classpath key: local.openmrs.url in ihshr.properties.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.local.openmrs.clientid.password.basic.auth</property>
+		<defaultValue>admin:apple@1Mango</defaultValue>
+		<description>Basic auth for local OpenMRS (username:password). Classpath key: local.openmrs.clientid.password.basic.auth in ihshr.properties.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.gofr.openhim.url</property>
+		<defaultValue>http://localhost:5001/fhir/DEFAULT</defaultValue>
+		<description>GOFR FHIR base URL exposed via OpenHIM.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.gofr.openhim.clientid.password.basic.auth</property>
+		<defaultValue>openmrs:Admin123</defaultValue>
+		<description>Basic auth for GOFR/OpenHIM (username:password).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.opencr.shr.url</property>
+		<defaultValue>http://192.168.19.152:6001/fhir/</defaultValue>
+		<description>Central SHR FHIR server base URL (e.g. http://host:port/fhir/) for transaction bundle posts.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.opencr.shr.credential</property>
+		<defaultValue>fhir_app:Admin123</defaultValue>
+		<description>Basic auth for central SHR bundle upload (username:password).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.opencr.openhim.url</property>
+		<defaultValue>http://localhost:5001/hapi-fhir-jpaserver/fhir</defaultValue>
+		<description>OpenCR FHIR base URL via OpenHIM (search/read).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.opencr.openhim.clientid.password.basic.auth</property>
+		<defaultValue>fhir_app:Admin123</defaultValue>
+		<description>Basic auth for OpenCR/OpenHIM (username:password).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.unmapped.backlog.enabled</property>
+		<defaultValue>true</defaultValue>
+		<description>When true, missing SNOMED/lookup mappings during structured obs export are persisted to ihshr_unmapped_term (§8.6).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>intelehealth.shr.source.uri</property>
+		<defaultValue>https://intelehealth.org/openmrs/installation-unknown</defaultValue>
+		<description>Unique IH installation URI on every SHR push resource meta.source (doc §5.3). Set once at deploy; do not change.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.shr.source.uri</property>
+		<defaultValue></defaultValue>
+		<description>Optional IHSHR-prefixed alias for intelehealth.shr.source.uri (doc §5.3).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.shr.pull.openhim.url</property>
+		<defaultValue></defaultValue>
+		<description>SHR pull FHIR base URL via OpenHIM (doc §4). Empty uses ihshr.opencr.openhim.url.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.shr.pull.default.count</property>
+		<defaultValue>50</defaultValue>
+		<description>Default _count for doctor portal SHR pull queries.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.shr.pull.max.count</property>
+		<defaultValue>200</defaultValue>
+		<description>Maximum allowed _count for SHR pull API.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.shr.pull.default.months</property>
+		<defaultValue>12</defaultValue>
+		<description>Default lookback window (months) when dateFrom is omitted on pull history.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.obs.chief_complaint.concept.ids</property>
+		<defaultValue>163212,5219</defaultValue>
+		<description>Chief complaint obs concept IDs (comma-separated). Classpath key: obs.chief_complaint.concept.ids.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.obs.medical_history.concept.ids</property>
+		<defaultValue>163210,165668</defaultValue>
+		<description>Patient medical history obs concept IDs (comma-separated).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.obs.physical_exam.concept.ids</property>
+		<defaultValue>163213</defaultValue>
+		<description>Physical examination obs concept IDs (comma-separated).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.obs.family_history.concept.ids</property>
+		<defaultValue>163211</defaultValue>
+		<description>Family history obs concept IDs (comma-separated).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.obs.diagnosis.concept.ids</property>
+		<defaultValue>163219</defaultValue>
+		<description>Diagnosis obs concept IDs (comma-separated).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.obs.referral.concept.ids</property>
+		<defaultValue>165238</defaultValue>
+		<description>Referral obs concept IDs (comma-separated).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.obs.follow_up.concept.ids</property>
+		<defaultValue>163345</defaultValue>
+		<description>Follow-up date obs concept IDs (comma-separated).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.obs.image.concept.ids</property>
+		<defaultValue>163371,163372</defaultValue>
+		<description>Complex image obs concept IDs (comma-separated).</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.config.published.url</property>
+		<defaultValue>https://intelehealth-prod-master-new.mpower-social.com:4004/api/config/getPublishedConfig</defaultValue>
+		<description>
+			Published configuration JSON URL. PublishedConfigShrSyncGateService reads fhir_module.shr;
+			when false, visit bundles are stored PENDING until sync is enabled.
+		</description>
+	</globalProperty>
+	<globalProperty>
+		<property>intelehealth.config.published.url</property>
+		<defaultValue>https://intelehealth-prod-master-new.mpower-social.com:4004/api/config/getPublishedConfig</defaultValue>
+		<description>
+			Legacy shared GP name (ihmodule + ihshr). Same URL as ihshr.config.published.url when both modules are installed.
+		</description>
+	</globalProperty>
+	<globalProperty>
+		<property>ihshr.fhir.sync.published.config.cache.seconds</property>
+		<defaultValue>60</defaultValue>
+		<description>Cache TTL in seconds for published config fhir_module.shr gate (PublishedConfigShrSyncGateService).</description>
+	</globalProperty>
+
+	<messages>
+		<lang>en</lang>
+		<file>messages.properties</file>
+	</messages>
+
+</module>

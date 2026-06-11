@@ -1,0 +1,91 @@
+{
+  "obsUuid": "test-family-history-obs-uuid",
+  "parsedRelatives": [{
+    "roleCode": "BRO",
+    "mapKey": "BRO",
+    "relativeLabel": "Brother",
+    "conditions": ["Heart Disease"]
+  }],
+  "input": {
+    "en": "Do you have a family history of any of the following?* : \u2022 Heart Disease, Brother..<br/>",
+    "l-en": "Do you have a family history of any of the following?* : ● Heart Disease\u2022Brother.<br/>"
+  },
+  "sharedNote": "Do you have a family history of any of the following?* : \u2022 Heart Disease, Brother..",
+  "parsedFrom": "en",
+  "lEnIgnored": true,
+  "source": "family_history_final_output",
+  "fhirTransactionBundles": [{
+    "entry": [{
+      "request": {
+        "method": "PUT",
+        "url": "FamilyMemberHistory/test-family-history-obs-uuid::fam-BRO"
+      },
+      "resource": {
+        "date": "2026-06-07T15:15:48+06:00",
+        "identifier": [{
+          "system": "urn:intelehealth:openmrs:obs",
+          "value": "test-family-history-obs-uuid::fam-BRO"
+        }],
+        "note": [{"text": "Do you have a family history of any of the following?* : \u2022 Heart Disease, Brother.."}],
+        "condition": [{"code": {
+          "coding": [{
+            "system": "http://snomed.info/sct",
+            "code": "56265001",
+            "display": "Heart disease (disorder)"
+          }],
+          "text": "Heart Disease"
+        }}],
+        "patient": {"reference": "Patient/test-patient-uuid"},
+        "relationship": {
+          "coding": [{
+            "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode",
+            "code": "BRO",
+            "display": "Brother"
+          }],
+          "text": "Brother"
+        },
+        "resourceType": "FamilyMemberHistory",
+        "status": "completed"
+      }
+    }],
+    "type": "transaction",
+    "resourceType": "Bundle"
+  }],
+  "fhirCombinedTransactionBundle": {
+    "entry": [{
+      "request": {
+        "method": "PUT",
+        "url": "FamilyMemberHistory/test-family-history-obs-uuid::fam-BRO"
+      },
+      "resource": {
+        "date": "2026-06-07T15:15:48+06:00",
+        "identifier": [{
+          "system": "urn:intelehealth:openmrs:obs",
+          "value": "test-family-history-obs-uuid::fam-BRO"
+        }],
+        "note": [{"text": "Do you have a family history of any of the following?* : \u2022 Heart Disease, Brother.."}],
+        "condition": [{"code": {
+          "coding": [{
+            "system": "http://snomed.info/sct",
+            "code": "56265001",
+            "display": "Heart disease (disorder)"
+          }],
+          "text": "Heart Disease"
+        }}],
+        "patient": {"reference": "Patient/test-patient-uuid"},
+        "relationship": {
+          "coding": [{
+            "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode",
+            "code": "BRO",
+            "display": "Brother"
+          }],
+          "text": "Brother"
+        },
+        "resourceType": "FamilyMemberHistory",
+        "status": "completed"
+      }
+    }],
+    "type": "transaction",
+    "resourceType": "Bundle"
+  }
+}

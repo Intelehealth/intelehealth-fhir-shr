@@ -1,0 +1,19 @@
+{
+  "version": "1",
+  "default_system": "http://snomed.info/sct",
+  "match_mode": "case-insensitive-trim",
+  "mappings": {
+    "general physician": {
+      "code": "62247001",
+      "display": "Family medicine specialist (occupation)"
+    },
+    "obstetrician & gynecologist": {
+      "code": "394584008",
+      "display": "Obstetrics and gynecology (specialty)"
+    },
+    "obstetrician and gynecologist": {
+      "code": "394584008",
+      "display": "Obstetrics and gynecology (specialty)"
+    }
+  }
+}

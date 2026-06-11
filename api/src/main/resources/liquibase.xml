@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog/1.9"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog/1.9
+		http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-1.9.xsd">
+
+	<!-- ih_marker and data_exchange_auditlog are owned by ihmodule (intelehealth-fhir-doctor-ui-api) -->
+
+	<changeSet id="ihshr-unmapped-term-1.0.0" author="ihshr">
+		<preConditions onFail="MARK_RAN">
+			<not>
+				<tableExists tableName="ihshr_unmapped_term"/>
+			</not>
+		</preConditions>
+		<comment>§8.6 SNOMED / lookup backlog (doc: intelehealth_unmapped_&lt;artifact&gt;)</comment>
+		<createTable tableName="ihshr_unmapped_term">
+			<column name="id" type="bigint" autoIncrement="true">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="record_uuid" type="varchar(38)">
+				<constraints nullable="false"/>
+			</column>
+			<column name="artifact" type="varchar(64)">
+				<constraints nullable="false"/>
+			</column>
+			<column name="term_text" type="varchar(512)">
+				<constraints nullable="false"/>
+			</column>
+			<column name="lookup_file" type="varchar(128)"/>
+			<column name="lookup_type" type="varchar(32)">
+				<constraints nullable="false"/>
+			</column>
+			<column name="obs_uuid" type="varchar(38)">
+				<constraints nullable="false"/>
+			</column>
+			<column name="encounter_uuid" type="varchar(38)"/>
+			<column name="patient_uuid" type="varchar(38)"/>
+			<column name="concept_id" type="int"/>
+			<column name="first_seen" type="datetime">
+				<constraints nullable="false"/>
+			</column>
+			<column name="last_seen" type="datetime">
+				<constraints nullable="false"/>
+			</column>
+			<column name="occurrences" type="int" defaultValueNumeric="1">
+				<constraints nullable="false"/>
+			</column>
+			<column name="resolved" type="boolean" defaultValueBoolean="false">
+				<constraints nullable="false"/>
+			</column>
+			<column name="date_resolved" type="datetime"/>
+		</createTable>
+		<addUniqueConstraint tableName="ihshr_unmapped_term"
+			columnNames="artifact, term_text, obs_uuid"
+			constraintName="uk_ihshr_unmapped_term_obs"/>
+		<createIndex tableName="ihshr_unmapped_term" indexName="idx_ihshr_unmapped_term_freq">
+			<column name="artifact"/>
+			<column name="resolved"/>
+			<column name="occurrences"/>
+		</createIndex>
+		<createIndex tableName="ihshr_unmapped_term" indexName="idx_ihshr_unmapped_term_last_seen">
+			<column name="last_seen"/>
+		</createIndex>
+	</changeSet>
+
+	<!-- Repair partial installs where 1.0.0 created the table but TEXT broke the unique index (MySQL 1170). -->
+	<changeSet id="ihshr-unmapped-term-1.0.1" author="ihshr">
+		<preConditions onFail="MARK_RAN">
+			<tableExists tableName="ihshr_unmapped_term"/>
+			<sqlCheck expectedResult="0">
+				SELECT COUNT(*) FROM information_schema.statistics
+				WHERE table_schema = DATABASE()
+				AND table_name = 'ihshr_unmapped_term'
+				AND index_name = 'uk_ihshr_unmapped_term_obs'
+			</sqlCheck>
+		</preConditions>
+		<comment>Fix term_text for unique key; add uk_ihshr_unmapped_term_obs if missing</comment>
+		<modifyColumn tableName="ihshr_unmapped_term">
+			<column name="term_text" type="varchar(512)">
+				<constraints nullable="false"/>
+			</column>
+		</modifyColumn>
+		<addUniqueConstraint tableName="ihshr_unmapped_term"
+			columnNames="artifact, term_text, obs_uuid"
+			constraintName="uk_ihshr_unmapped_term_obs"/>
+	</changeSet>
+
+	<changeSet id="ihshr-sync-log-1.0.0" author="ihshr">
+		<preConditions onFail="MARK_RAN">
+			<not>
+				<tableExists tableName="intelehealth_shr_sync_log"/>
+			</not>
+		</preConditions>
+		<comment>SHR push sync log (doc §3.1 step 9/16, §13.1)</comment>
+		<createTable tableName="intelehealth_shr_sync_log">
+			<column name="id" type="bigint" autoIncrement="true">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="visit_uuid" type="varchar(38)">
+				<constraints nullable="false"/>
+			</column>
+			<column name="trigger_encounter_uuid" type="varchar(38)">
+				<constraints nullable="false"/>
+			</column>
+			<column name="attempt_number" type="int" defaultValueNumeric="1">
+				<constraints nullable="false"/>
+			</column>
+			<column name="request_bundle" type="longblob"/>
+			<column name="response_bundle" type="longblob"/>
+			<column name="shr_bundle_id" type="varchar(64)"/>
+			<column name="status" type="varchar(20)">
+				<constraints nullable="false"/>
+			</column>
+			<column name="failure_reason" type="text"/>
+			<column name="http_status_code" type="int"/>
+			<column name="started_at" type="datetime">
+				<constraints nullable="false"/>
+			</column>
+			<column name="completed_at" type="datetime"/>
+			<column name="next_retry_at" type="datetime"/>
+			<column name="resource_map" type="longtext"/>
+			<column name="created_at" type="datetime">
+				<constraints nullable="false"/>
+			</column>
+			<column name="updated_at" type="datetime">
+				<constraints nullable="false"/>
+			</column>
+		</createTable>
+		<addUniqueConstraint tableName="intelehealth_shr_sync_log"
+			columnNames="visit_uuid, attempt_number"
+			constraintName="uk_shr_sync_visit_attempt"/>
+		<createIndex tableName="intelehealth_shr_sync_log" indexName="idx_shr_sync_status">
+			<column name="status"/>
+		</createIndex>
+		<createIndex tableName="intelehealth_shr_sync_log" indexName="idx_shr_sync_next_retry">
+			<column name="next_retry_at"/>
+		</createIndex>
+		<createIndex tableName="intelehealth_shr_sync_log" indexName="idx_shr_sync_visit">
+			<column name="visit_uuid"/>
+			<column name="attempt_number"/>
+		</createIndex>
+	</changeSet>
+
+</databaseChangeLog>

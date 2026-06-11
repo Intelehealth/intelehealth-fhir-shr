@@ -1,0 +1,55 @@
+{
+  "version": "1",
+  "default_system": "http://snomed.info/sct",
+  "match_mode": "case-insensitive-trim",
+  "mappings": {
+    "fever": {
+      "code": "386661006",
+      "display": "Fever (finding)"
+    },
+    "headache": {
+      "code": "25064002",
+      "display": "Headache (finding)"
+    },
+    "cough": {
+      "code": "49727002",
+      "display": "Cough (finding)"
+    },
+    "fatigue": {
+      "code": "84229001",
+      "display": "Fatigue (finding)"
+    },
+    "general weakness": {
+      "code": "13791008",
+      "display": "Asthenia (finding)"
+    },
+    "fatigue and general weakness": {
+      "code": "84229001",
+      "display": "Fatigue (finding)"
+    },
+    "body pain": {
+      "code": "279079003",
+      "display": "Generalised body pain (finding)"
+    },
+    "vomiting": {
+      "code": "422400008",
+      "display": "Vomiting (disorder)"
+    },
+    "diarrhoea": {
+      "code": "62315008",
+      "display": "Diarrhea (finding)"
+    },
+    "abdominal pain": {
+      "code": "21522001",
+      "display": "Abdominal pain (finding)"
+    },
+    "shortness of breath": {
+      "code": "267036007",
+      "display": "Dyspnea (finding)"
+    },
+    "dizziness": {
+      "code": "404640003",
+      "display": "Dizziness (finding)"
+    }
+  }
+}

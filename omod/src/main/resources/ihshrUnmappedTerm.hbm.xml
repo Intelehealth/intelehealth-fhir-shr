@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<hibernate-mapping package="org.openmrs.module.ihshr.backlog">
+	<class name="IhshrUnmappedTerm" table="ihshr_unmapped_term">
+		<id name="id" type="long" column="id">
+			<generator class="native"/>
+		</id>
+		<property name="recordUuid" type="string" column="record_uuid" not-null="true"/>
+		<property name="artifact" type="string" column="artifact" not-null="true"/>
+		<property name="termText" type="string" column="term_text" length="512" not-null="true"/>
+		<property name="lookupFile" type="string" column="lookup_file"/>
+		<property name="lookupType" type="string" column="lookup_type" not-null="true"/>
+		<property name="obsUuid" type="string" column="obs_uuid" not-null="true"/>
+		<property name="encounterUuid" type="string" column="encounter_uuid"/>
+		<property name="patientUuid" type="string" column="patient_uuid"/>
+		<property name="conceptId" type="integer" column="concept_id"/>
+		<property name="firstSeen" type="timestamp" column="first_seen" not-null="true"/>
+		<property name="lastSeen" type="timestamp" column="last_seen" not-null="true"/>
+		<property name="occurrences" type="integer" column="occurrences" not-null="true"/>
+		<property name="resolved" type="boolean" column="resolved" not-null="true"/>
+		<property name="dateResolved" type="timestamp" column="date_resolved"/>
+	</class>
+</hibernate-mapping>

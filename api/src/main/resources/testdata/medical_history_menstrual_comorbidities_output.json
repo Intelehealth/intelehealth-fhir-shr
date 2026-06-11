@@ -1,0 +1,63 @@
+{
+  "obsUuid": "920352ce-4e64-4b55-9dfe-883332b546c0",
+  "input": {
+    "en": "\u2022 Menstrual History* - Status - Patient is pre-menopausal.<br/>\u2022 Known comorbidities - Diabetes - Since - 4 years. Current medication - No. Status - Testing.<br/>\u2022 Current medications - No recent medication.<br/>\u2022 Allergies - No known allergies.<br/>",
+    "l-en": "● Menstrual History*<br/>\u2022  Status<br/>▻Pre-menopausal<br/>● Comorbidities*<br/>\u2022  Diabetes<br/>▻ Since<br/>▻4 years<br/>▻ Current medication<br/>▻No<br/>▻ Status<br/>▻Testing<br/>● Current medications<br/>\u2022No<br/>● Do you have any allergies?*<br/>\u2022No known allergies<br/>"
+  },
+  "fhirTransactionBundle": {
+    "type": "transaction",
+    "resourceType": "Bundle"
+  },
+  "basename": "medical_history_menstrual_comorbidities",
+  "sharedNote": "\u2022 Menstrual History* - Status - Patient is pre-menopausal.\n\u2022 Known comorbidities - Diabetes - Since - 4 years. Current medication - No. Status - Testing.",
+  "parsedFrom": "en",
+  "resourceCounts": {
+    "total": 0,
+    "observations": 0,
+    "allergyIntolerances": 0,
+    "conditions": 0,
+    "medicationStatements": 0
+  },
+  "lEnIgnored": true,
+  "parsedTopics": [
+    {
+      "topicKey": "menstrual history",
+      "negative": false,
+      "topicLabel": "Menstrual History*",
+      "value": "Status - Patient is pre-menopausal"
+    },
+    {
+      "topicKey": "known comorbidities",
+      "negative": false,
+      "topicLabel": "Known comorbidities",
+      "value": "Diabetes - Since - 4 years. Current medication - No. Status - Testing"
+    },
+    {
+      "topicKey": "current medications",
+      "negative": true,
+      "topicLabel": "Current medications",
+      "value": "No recent medication"
+    },
+    {
+      "topicKey": "allergies",
+      "negative": true,
+      "topicLabel": "Allergies",
+      "value": "No known allergies"
+    }
+  ],
+  "source": "medical_history_final_output",
+  "positiveTopics": [
+    {
+      "topicKey": "menstrual history",
+      "negative": false,
+      "topicLabel": "Menstrual History*",
+      "value": "Status - Patient is pre-menopausal"
+    },
+    {
+      "topicKey": "known comorbidities",
+      "negative": false,
+      "topicLabel": "Known comorbidities",
+      "value": "Diabetes - Since - 4 years. Current medication - No. Status - Testing"
+    }
+  ]
+}

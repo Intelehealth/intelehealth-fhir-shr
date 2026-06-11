@@ -1,0 +1,430 @@
+{
+  "source": "physical_exam_final_output",
+  "obsUuid": "920352ce-4e64-4b55-9dfe-883332b546c0",
+  "parsedFrom": "en",
+  "lEnIgnored": true,
+  "input": {
+    "en": "<br/>►<b>General exams: </b><br/>• Eyes: Jaundice-no jaundice seen, [picture taken]. <br/>• Eyes: Pallor-normal pallor. <br/>• Arm-Pinch skin* - pinch test normal. <br/>• Nail abnormality-nails normal. <br/>• Nail anemia-Nails are normal. <br/>• Ankle-no pedal oedema. -<br/>►<b>Mouth: </b><br/>•  back of throat normal. -<br/>►<b>Any Location: </b><br/>• Skin Rash:-no rash. <br/>• Ulcer:-no ulcer. -<br/>►<b>Abdomen: </b><br/>•  no tenderness.",
+    "l-en": "►<b>General exams: </b><br/>• Eyes: Jaundice-● Is there jaundice?*<br/>•No,[picture taken]-<br/>• Eyes: Pallor-● Is there pallor?*<br/>•Normal-<br/>• Arm-● Pinch skin*<br/>•Normal-<br/>• Nail abnormality-● Is there any nail abnormality?*<br/>•Nails are normal-<br/>• Nail anemia-● Are the nails pale?*<br/>•Nails are normal-<br/>• Ankle-● Is there ankle oedema?<br/>•No oedema--►<b>Mouth: </b><br/>• Back of throat (redness, swelling)-● Ask patient to open mouth and stick tongue out.  Shine a torch to examine the back of throat and look for swelling/redness *<br/>•Normal--►<b>Any Location: </b><br/>• Skin Rash-● Is there any rash? *<br/>•No-<br/>• Ulcer-● Is there an ulcer? *<br/>•No--►<b>Abdomen: </b><br/>• Tenderness-● Is there abdominal tenderness?*<br/>•No tenderness--"
+  },
+  "sharedNote": "General exams: Eyes: Jaundice-no jaundice seen, [picture taken]. Eyes: Pallor-normal pallor. Arm-Pinch skin* - pinch test normal. Nail abnormality-nails normal. Nail anemia-Nails are normal. Ankle-no pedal oedema. - Mouth: back of throat normal. - Any Location: Skin Rash:-no rash. Ulcer:-no ulcer. - Abdomen: no tenderness.",
+  "parsedCategories": [
+    {
+      "categoryName": "General exams",
+      "findings": [
+        {
+          "item": "Eyes: Jaundice",
+          "finding": "no jaundice seen"
+        },
+        {
+          "item": "Eyes: Pallor",
+          "finding": "normal pallor"
+        },
+        {
+          "item": "Arm-Pinch skin*",
+          "finding": "pinch test normal"
+        },
+        {
+          "item": "Nail abnormality",
+          "finding": "nails normal"
+        },
+        {
+          "item": "Nail anemia",
+          "finding": "Nails are normal"
+        },
+        {
+          "item": "Ankle",
+          "finding": "no pedal oedema"
+        }
+      ]
+    },
+    {
+      "categoryName": "Mouth",
+      "findings": [
+        {
+          "item": "back of throat normal.",
+          "finding": ""
+        }
+      ]
+    },
+    {
+      "categoryName": "Any Location",
+      "findings": [
+        {
+          "item": "Skin Rash:-no rash",
+          "finding": ""
+        },
+        {
+          "item": "Ulcer:-no ulcer.",
+          "finding": ""
+        }
+      ]
+    },
+    {
+      "categoryName": "Abdomen",
+      "findings": [
+        {
+          "item": "no tenderness",
+          "finding": ""
+        }
+      ]
+    }
+  ],
+  "fhirTransactionBundles": [
+    {
+      "resourceType": "Bundle",
+      "type": "transaction",
+      "entry": [
+        {
+          "resource": {
+            "resourceType": "Observation",
+            "identifier": [
+              {
+                "system": "urn:intelehealth:openmrs:obs",
+                "value": "920352ce-4e64-4b55-9dfe-883332b546c0::cat-general-exams"
+              }
+            ],
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "exam"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "425044008",
+                  "display": "Physical examination procedure"
+                }
+              ],
+              "text": "General exams"
+            },
+            "subject": {
+              "reference": "Patient/test-patient-uuid"
+            },
+            "encounter": {
+              "reference": "Encounter/test-encounter-uuid"
+            },
+            "effectiveDateTime": "2026-06-04T15:09:50+06:00",
+            "note": [
+              {
+                "text": "General exams: Eyes: Jaundice-no jaundice seen, [picture taken]. Eyes: Pallor-normal pallor. Arm-Pinch skin* - pinch test normal. Nail abnormality-nails normal. Nail anemia-Nails are normal. Ankle-no pedal oedema. - Mouth: back of throat normal. - Any Location: Skin Rash:-no rash. Ulcer:-no ulcer. - Abdomen: no tenderness."
+              }
+            ],
+            "bodySite": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "38266002",
+                  "display": "Entire body as a whole"
+                }
+              ],
+              "text": "Entire body as a whole"
+            },
+            "component": [
+              {
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "18165001",
+                      "display": "Jaundice (finding)"
+                    }
+                  ],
+                  "text": "Eyes: Jaundice"
+                },
+                "valueString": "no jaundice seen"
+              },
+              {
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "271807003",
+                      "display": "Pallor (finding)"
+                    }
+                  ],
+                  "text": "Eyes: Pallor"
+                },
+                "valueString": "normal pallor"
+              },
+              {
+                "code": {
+                  "text": "Arm-Pinch skin*"
+                },
+                "valueString": "pinch test normal"
+              },
+              {
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "36209000",
+                      "display": "Abnormality of nail (finding)"
+                    }
+                  ],
+                  "text": "Nail abnormality"
+                },
+                "valueString": "nails normal"
+              },
+              {
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "271737000",
+                      "display": "Anemia (disorder)"
+                    }
+                  ],
+                  "text": "Nail anemia"
+                },
+                "valueString": "Nails are normal"
+              },
+              {
+                "code": {
+                  "coding": [
+                    {
+                      "system": "http://snomed.info/sct",
+                      "code": "249366005",
+                      "display": "Pedal edema (finding)"
+                    }
+                  ],
+                  "text": "Ankle"
+                },
+                "valueString": "no pedal oedema"
+              }
+            ]
+          },
+          "request": {
+            "method": "PUT",
+            "url": "Observation/920352ce-4e64-4b55-9dfe-883332b546c0::cat-general-exams"
+          }
+        }
+      ]
+    },
+    {
+      "resourceType": "Bundle",
+      "type": "transaction",
+      "entry": [
+        {
+          "resource": {
+            "resourceType": "Observation",
+            "identifier": [
+              {
+                "system": "urn:intelehealth:openmrs:obs",
+                "value": "920352ce-4e64-4b55-9dfe-883332b546c0::cat-mouth"
+              }
+            ],
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "exam"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "425044008",
+                  "display": "Physical examination procedure"
+                }
+              ],
+              "text": "Mouth"
+            },
+            "subject": {
+              "reference": "Patient/test-patient-uuid"
+            },
+            "encounter": {
+              "reference": "Encounter/test-encounter-uuid"
+            },
+            "effectiveDateTime": "2026-06-04T15:09:50+06:00",
+            "note": [
+              {
+                "text": "General exams: Eyes: Jaundice-no jaundice seen, [picture taken]. Eyes: Pallor-normal pallor. Arm-Pinch skin* - pinch test normal. Nail abnormality-nails normal. Nail anemia-Nails are normal. Ankle-no pedal oedema. - Mouth: back of throat normal. - Any Location: Skin Rash:-no rash. Ulcer:-no ulcer. - Abdomen: no tenderness."
+              }
+            ],
+            "bodySite": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "21082005",
+                  "display": "Mouth structure"
+                }
+              ],
+              "text": "Mouth structure"
+            },
+            "component": [
+              {
+                "code": {
+                  "text": "back of throat normal."
+                }
+              }
+            ]
+          },
+          "request": {
+            "method": "PUT",
+            "url": "Observation/920352ce-4e64-4b55-9dfe-883332b546c0::cat-mouth"
+          }
+        }
+      ]
+    },
+    {
+      "resourceType": "Bundle",
+      "type": "transaction",
+      "entry": [
+        {
+          "resource": {
+            "resourceType": "Observation",
+            "identifier": [
+              {
+                "system": "urn:intelehealth:openmrs:obs",
+                "value": "920352ce-4e64-4b55-9dfe-883332b546c0::cat-any-location"
+              }
+            ],
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "exam"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "425044008",
+                  "display": "Physical examination procedure"
+                }
+              ],
+              "text": "Any Location"
+            },
+            "subject": {
+              "reference": "Patient/test-patient-uuid"
+            },
+            "encounter": {
+              "reference": "Encounter/test-encounter-uuid"
+            },
+            "effectiveDateTime": "2026-06-04T15:09:50+06:00",
+            "note": [
+              {
+                "text": "General exams: Eyes: Jaundice-no jaundice seen, [picture taken]. Eyes: Pallor-normal pallor. Arm-Pinch skin* - pinch test normal. Nail abnormality-nails normal. Nail anemia-Nails are normal. Ankle-no pedal oedema. - Mouth: back of throat normal. - Any Location: Skin Rash:-no rash. Ulcer:-no ulcer. - Abdomen: no tenderness."
+              }
+            ],
+            "bodySite": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "38266002",
+                  "display": "Entire body as a whole"
+                }
+              ],
+              "text": "Entire body as a whole"
+            },
+            "component": [
+              {
+                "code": {
+                  "text": "Skin Rash:-no rash"
+                }
+              },
+              {
+                "code": {
+                  "text": "Ulcer:-no ulcer."
+                }
+              }
+            ]
+          },
+          "request": {
+            "method": "PUT",
+            "url": "Observation/920352ce-4e64-4b55-9dfe-883332b546c0::cat-any-location"
+          }
+        }
+      ]
+    },
+    {
+      "resourceType": "Bundle",
+      "type": "transaction",
+      "entry": [
+        {
+          "resource": {
+            "resourceType": "Observation",
+            "identifier": [
+              {
+                "system": "urn:intelehealth:openmrs:obs",
+                "value": "920352ce-4e64-4b55-9dfe-883332b546c0::cat-abdomen"
+              }
+            ],
+            "status": "final",
+            "category": [
+              {
+                "coding": [
+                  {
+                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                    "code": "exam"
+                  }
+                ]
+              }
+            ],
+            "code": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "425044008",
+                  "display": "Physical examination procedure"
+                }
+              ],
+              "text": "Abdomen"
+            },
+            "subject": {
+              "reference": "Patient/test-patient-uuid"
+            },
+            "encounter": {
+              "reference": "Encounter/test-encounter-uuid"
+            },
+            "effectiveDateTime": "2026-06-04T15:09:50+06:00",
+            "note": [
+              {
+                "text": "General exams: Eyes: Jaundice-no jaundice seen, [picture taken]. Eyes: Pallor-normal pallor. Arm-Pinch skin* - pinch test normal. Nail abnormality-nails normal. Nail anemia-Nails are normal. Ankle-no pedal oedema. - Mouth: back of throat normal. - Any Location: Skin Rash:-no rash. Ulcer:-no ulcer. - Abdomen: no tenderness."
+              }
+            ],
+            "bodySite": {
+              "coding": [
+                {
+                  "system": "http://snomed.info/sct",
+                  "code": "113345001",
+                  "display": "Abdominal structure"
+                }
+              ],
+              "text": "Abdominal structure"
+            },
+            "component": [
+              {
+                "code": {
+                  "text": "no tenderness"
+                }
+              }
+            ]
+          },
+          "request": {
+            "method": "PUT",
+            "url": "Observation/920352ce-4e64-4b55-9dfe-883332b546c0::cat-abdomen"
+          }
+        }
+      ]
+    }
+  ]
+}

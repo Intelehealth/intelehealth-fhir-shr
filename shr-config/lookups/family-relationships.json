@@ -1,0 +1,75 @@
+{
+  "version": "1",
+  "default_system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode",
+  "match_mode": "case-insensitive-trim",
+  "mappings": {
+    "father": {
+      "code": "FTH",
+      "display": "Father"
+    },
+    "mother": {
+      "code": "MTH",
+      "display": "Mother"
+    },
+    "brother": {
+      "code": "BRO",
+      "display": "Brother"
+    },
+    "sister": {
+      "code": "SIS",
+      "display": "Sister"
+    },
+    "son": {
+      "code": "SON",
+      "display": "Son"
+    },
+    "daughter": {
+      "code": "DAU",
+      "display": "Daughter"
+    },
+    "grandfather": {
+      "code": "GRFTH",
+      "display": "Grandfather"
+    },
+    "grandmother": {
+      "code": "GRMTH",
+      "display": "Grandmother"
+    },
+    "uncle": {
+      "code": "UNCLE",
+      "display": "Uncle"
+    },
+    "aunt": {
+      "code": "AUNT",
+      "display": "Aunt"
+    },
+    "husband": {
+      "code": "HUSB",
+      "display": "Husband"
+    },
+    "wife": {
+      "code": "WIFE",
+      "display": "Wife"
+    },
+    "आजोबा": {
+      "code": "GRFTH",
+      "display": "Grandfather"
+    },
+    "दादा": {
+      "code": "GRFTH",
+      "display": "Grandfather"
+    },
+    "नाना": {
+      "code": "GRFTH",
+      "display": "Grandfather (maternal)"
+    },
+    "भाऊ": {
+      "code": "BRO",
+      "display": "Brother"
+    },
+    "बहीण": {
+      "code": "SIS",
+      "display": "Sister"
+    }
+  }
+}

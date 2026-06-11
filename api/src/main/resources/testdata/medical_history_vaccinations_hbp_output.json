@@ -1,0 +1,112 @@
+{
+  "obsUuid": "920352ce-4e64-4b55-9dfe-883332b546c0",
+  "input": {
+    "en": "\u2022 Current Vaccinations status - Complete.<br/>\u2022 Medical History - High Blood Pressure - Current medication - Not taking any medication.<br/>\u2022 Drug history - No recent medication.<br/>\u2022 Allergies - No known allergies.<br/>\u2022 Chewing tobacco status - Do not Chew.<br/>\u2022 Smoking history* - Patient denied/has no h/o smoking.<br/>\u2022 Alcohol use* - No.<br/>",
+    "l-en": "● Has your child been vaccinated?<br/>\u2022Complete<br/>● Do you have a history of any of the following?*<br/>\u2022  High Blood Pressure<br/>▻ Current medication<br/>▻Not taking any medication<br/>● Have you recently taken any kind of medicine (including ayurvedic/homeopathic/unani/herbal)?*<br/>\u2022No<br/>● Do you have any allergies?*<br/>\u2022No known allergies<br/>● Do you chew tobbaco?<br/>\u2022Do not Chew<br/>● Smoking history*<br/>\u2022Never-smoker<br/>● Alcohol use*<br/>\u2022No<br/>"
+  },
+  "fhirTransactionBundle": {
+    "entry": [{
+      "request": {
+        "method": "PUT",
+        "url": "Condition/920352ce-4e64-4b55-9dfe-883332b546c0::topic-medical-history-1"
+      },
+      "resource": {
+        "identifier": [{
+          "system": "urn:intelehealth:openmrs:obs",
+          "value": "920352ce-4e64-4b55-9dfe-883332b546c0::topic-medical-history-1"
+        }],
+        "note": [{"text": "\u2022 Current Vaccinations status - Complete.\n\u2022 Medical History - High Blood Pressure - Current medication - Not taking any medication."}],
+        "code": {"text": "High Blood Pressure - Current medication - Not taking any medication"},
+        "verificationStatus": {"coding": [{
+          "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+          "code": "confirmed"
+        }]},
+        "subject": {"reference": "Patient/test-patient-uuid"},
+        "recordedDate": "2026-06-07T15:15:48+06:00",
+        "encounter": {"reference": "Encounter/test-encounter-uuid"},
+        "clinicalStatus": {"coding": [{
+          "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+          "code": "active"
+        }]},
+        "category": [{"coding": [{
+          "system": "http://terminology.hl7.org/CodeSystem/condition-category",
+          "code": "problem-list-item"
+        }]}],
+        "onsetDateTime": "2026-06-07T15:15:48+06:00",
+        "resourceType": "Condition"
+      }
+    }],
+    "type": "transaction",
+    "resourceType": "Bundle"
+  },
+  "basename": "medical_history_vaccinations_hbp",
+  "sharedNote": "\u2022 Current Vaccinations status - Complete.\n\u2022 Medical History - High Blood Pressure - Current medication - Not taking any medication.",
+  "parsedFrom": "en",
+  "resourceCounts": {
+    "total": 1,
+    "observations": 0,
+    "allergyIntolerances": 0,
+    "conditions": 1,
+    "medicationStatements": 0
+  },
+  "lEnIgnored": true,
+  "parsedTopics": [
+    {
+      "topicKey": "current vaccinations status",
+      "negative": false,
+      "topicLabel": "Current Vaccinations status",
+      "value": "Complete"
+    },
+    {
+      "topicKey": "medical history",
+      "negative": false,
+      "topicLabel": "Medical History",
+      "value": "High Blood Pressure - Current medication - Not taking any medication"
+    },
+    {
+      "topicKey": "drug history",
+      "negative": true,
+      "topicLabel": "Drug history",
+      "value": "No recent medication"
+    },
+    {
+      "topicKey": "allergies",
+      "negative": true,
+      "topicLabel": "Allergies",
+      "value": "No known allergies"
+    },
+    {
+      "topicKey": "chewing tobacco status",
+      "negative": true,
+      "topicLabel": "Chewing tobacco status",
+      "value": "Do not Chew"
+    },
+    {
+      "topicKey": "smoking history",
+      "negative": true,
+      "topicLabel": "Smoking history*",
+      "value": "Patient denied/has no h/o smoking"
+    },
+    {
+      "topicKey": "alcohol use",
+      "negative": true,
+      "topicLabel": "Alcohol use*",
+      "value": "No"
+    }
+  ],
+  "source": "medical_history_final_output",
+  "positiveTopics": [
+    {
+      "topicKey": "current vaccinations status",
+      "negative": false,
+      "topicLabel": "Current Vaccinations status",
+      "value": "Complete"
+    },
+    {
+      "topicKey": "medical history",
+      "negative": false,
+      "topicLabel": "Medical History",
+      "value": "High Blood Pressure - Current medication - Not taking any medication"
+    }
+  ]
+}

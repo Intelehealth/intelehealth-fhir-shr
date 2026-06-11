@@ -1,0 +1,47 @@
+{
+  "version": "1",
+  "default_system": "http://snomed.info/sct",
+  "match_mode": "case-insensitive-trim",
+  "mappings": {
+    "high bp": {
+      "code": "38341003",
+      "display": "Hypertensive disorder, systemic arterial (disorder)"
+    },
+    "hypertension": {
+      "code": "38341003",
+      "display": "Hypertensive disorder, systemic arterial (disorder)"
+    },
+    "diabetes": {
+      "code": "73211009",
+      "display": "Diabetes mellitus (disorder)"
+    },
+    "diabetes type 2": {
+      "code": "44054006",
+      "display": "Diabetes mellitus type 2 (disorder)"
+    },
+    "heart disease": {
+      "code": "56265001",
+      "display": "Heart disease (disorder)"
+    },
+    "tb": {
+      "code": "56717001",
+      "display": "Tuberculosis (disorder)"
+    },
+    "tuberculosis": {
+      "code": "56717001",
+      "display": "Tuberculosis (disorder)"
+    },
+    "cancer": {
+      "code": "363346000",
+      "display": "Malignant neoplastic disease (disorder)"
+    },
+    "asthma": {
+      "code": "195967001",
+      "display": "Asthma (disorder)"
+    },
+    "stroke": {
+      "code": "230690007",
+      "display": "Cerebrovascular accident (disorder)"
+    }
+  }
+}

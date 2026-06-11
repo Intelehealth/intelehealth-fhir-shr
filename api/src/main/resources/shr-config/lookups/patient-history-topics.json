@@ -1,0 +1,90 @@
+{
+  "version": "1",
+  "negative_patterns": [
+    "^\\s*no\\s*$",
+    "^\\s*no\\s+",
+    "^\\s*not\\s+",
+    "^\\s*none\\b",
+    "^\\s*never\\b",
+    "no\\s+known",
+    "denied",
+    "do not chew",
+    "do not ",
+    "no recent medication"
+  ],
+  "topics": {
+    "current vaccinations status": {
+      "resource": "Observation",
+      "code_text": "Current vaccination status",
+      "value_as_codeable_text": true
+    },
+    "pregnancy status": {
+      "resource": "Observation",
+      "category": "social-history",
+      "code_system": "http://loinc.org",
+      "code": "82810-3",
+      "display": "Pregnancy status",
+      "value_map": {
+        "pregnant": {
+          "system": "http://snomed.info/sct",
+          "code": "77386006",
+          "display": "Pregnant (finding)"
+        }
+      }
+    },
+    "allergies": {
+      "resource": "AllergyIntolerance",
+      "clinical_status": "active",
+      "verification_status": "confirmed",
+      "type": "allergy"
+    },
+    "alcohol use": {
+      "resource": "Observation",
+      "category": "social-history",
+      "code_system": "http://loinc.org",
+      "code": "11331-6",
+      "display": "History of Alcohol use"
+    },
+    "smoking history": {
+      "resource": "Observation",
+      "category": "social-history",
+      "code_system": "http://loinc.org",
+      "code": "72166-2",
+      "display": "Tobacco smoking status",
+      "value_map": {
+        "smoker": {
+          "system": "http://snomed.info/sct",
+          "code": "77176002",
+          "display": "Smoker (finding)"
+        },
+        "ex-smoker": {
+          "system": "http://snomed.info/sct",
+          "code": "8517006",
+          "display": "Ex-smoker (finding)"
+        },
+        "non-smoker": {
+          "system": "http://snomed.info/sct",
+          "code": "8392000",
+          "display": "Non-smoker (finding)"
+        }
+      },
+      "extract_duration_to_component": {
+        "system": "http://snomed.info/sct",
+        "code": "266918002",
+        "display": "Tobacco smoking consumption duration"
+      }
+    },
+    "drug history": {
+      "resource": "MedicationStatement",
+      "default_status": "active"
+    },
+    "medical history": {
+      "resource": "Condition",
+      "category": "problem-list-item",
+      "verification_status": "confirmed",
+      "clinical_status": "active",
+      "comma_split": true,
+      "lookup_file": "family-history-conditions.json"
+    }
+  }
+}

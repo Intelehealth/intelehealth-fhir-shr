@@ -1,0 +1,55 @@
+{
+  "version": "1",
+  "default_system": "http://snomed.info/sct",
+  "match_mode": "case-insensitive-trim",
+  "categories": {
+    "general exams": {
+      "code": "38266002",
+      "display": "Entire body as a whole"
+    },
+    "any location": {
+      "code": "38266002",
+      "display": "Entire body as a whole"
+    },
+    "mouth": {
+      "code": "21082005",
+      "display": "Mouth structure"
+    },
+    "joint": {
+      "code": "39352004",
+      "display": "Joint structure"
+    },
+    "leg": {
+      "code": "30021000",
+      "display": "Leg structure"
+    },
+    "neck": {
+      "code": "45048000",
+      "display": "Neck structure"
+    },
+    "face": {
+      "code": "89545001",
+      "display": "Face structure"
+    },
+    "abdomen": {
+      "code": "113345001",
+      "display": "Abdominal structure"
+    },
+    "hands": {
+      "code": "85562004",
+      "display": "Hand structure"
+    },
+    "eyes": {
+      "code": "81745001",
+      "display": "Structure of eye proper"
+    },
+    "chest": {
+      "code": "51185008",
+      "display": "Thoracic structure"
+    },
+    "back": {
+      "code": "123961009",
+      "display": "Back structure"
+    }
+  }
+}

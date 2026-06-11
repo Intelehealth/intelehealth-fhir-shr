@@ -1,0 +1,31 @@
+{
+  "version": "1",
+  "default_system": "http://snomed.info/sct",
+  "match_mode": "case-insensitive-trim",
+  "mappings": {
+    "eyes: jaundice": {
+      "code": "18165001",
+      "display": "Jaundice (finding)"
+    },
+    "eyes: pallor": {
+      "code": "271807003",
+      "display": "Pallor (finding)"
+    },
+    "ankle": {
+      "code": "249366005",
+      "display": "Pedal edema (finding)"
+    },
+    "thyroid swelling": {
+      "code": "237495005",
+      "display": "Thyroid swelling (finding)"
+    },
+    "nail abnormality": {
+      "code": "36209000",
+      "display": "Abnormality of nail (finding)"
+    },
+    "nail anemia": {
+      "code": "271737000",
+      "display": "Anemia (disorder)"
+    }
+  }
+}
