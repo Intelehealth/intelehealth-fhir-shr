@@ -89,6 +89,7 @@ import org.openmrs.module.ihshr.service.CommonOperationService;
 import org.openmrs.module.ihshr.synclog.IntelehealthShrSyncLog;
 import org.openmrs.module.ihshr.synclog.ObsPushContext;
 import org.openmrs.module.ihshr.synclog.ShrSyncLogService;
+import org.openmrs.module.ihshr.synclog.ShrSyncLogStatus;
 import org.openmrs.module.ihshr.synclog.ShrVisitSyncPushContract;
 import org.openmrs.module.ihshr.service.ConfigDataSyncService;
 import org.openmrs.module.ihshr.service.ShrMarkerAccess;
@@ -412,7 +413,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 		catch (IllegalStateException ex) {
 			System.err.println("[VisitPush] " + operationLabel + " for visit " + pushRow.getVisitUuid() + " failed: "
 			        + ex.getMessage());
-			return true;
+			return false;
 		}
 		catch (Exception ex) {
 			System.err.println("[VisitPush] " + operationLabel + " failed for sync log id=" + pushRow.getId() + ": "
@@ -633,31 +634,6 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 	
 	private void populateVisitObservations(VisitTransactionBundleBuilder builder, HashSet<Integer> encounterIds,
 	        String visitUuid) throws ParseException, UnsupportedEncodingException, DataFormatException {
-		
-		System.err.println("[Observation] Physical examination concept_id=" + PhysicalExamConstants.PHYSICAL_EXAM_CONCEPT_ID
-		        + " (163213)");
-		System.err.println("[Observation] Chief complaint concept_id=" + ChiefComplaintConstants.CHIEF_COMPLAINT_CONCEPT_ID
-		        + " (163212)");
-		System.err.println("[Observation] Family history concept_id=" + FamilyHistoryConstants.FAMILY_HISTORY_CONCEPT_ID
-		        + " (163211)");
-		System.err.println("[Observation] Medical history concept_id="
-		        + MedicalHistoryConstants.PATIENT_MEDICAL_HISTORY_CONCEPT_ID + " (163210)");
-		System.err.println("[Observation] Diagnosis concept_id=" + DiagnosisConstants.DIAGNOSIS_CONCEPT_ID + " (163219)");
-		System.err.println("[Observation] Referral concept_id=" + ReferralConstants.REFERRAL_CONCEPT_ID + " (165238)");
-		System.err
-		        .println("[Observation] Follow up date concept_id=" + FollowUpConstants.FOLLOW_UP_CONCEPT_ID + " (163345)");
-		System.err.println("[Observation] Image concepts=" + ImageObsConstants.COMPLEX_IMAGE_CONCEPT_1 + ","
-		        + ImageObsConstants.COMPLEX_IMAGE_CONCEPT_2 + " (obs_complex)");
-		System.err.println("[Observation] Resolved physical exam concept_ids from DB: "
-		        + commonOperationService.getResolvedPhysicalExamConceptIds());
-		System.err.println("[Observation] Resolved chief complaint concept_ids from DB: "
-		        + commonOperationService.getResolvedChiefComplaintConceptIds());
-		System.err.println("[Observation] Resolved family history concept_ids from DB: "
-		        + commonOperationService.getResolvedFamilyHistoryConceptIds());
-		System.err.println("[Observation] Resolved medical history concept_ids from DB: "
-		        + commonOperationService.getResolvedMedicalHistoryConceptIds());
-		System.err.println("[Observation] Resolved diagnosis concept_ids from DB: "
-		        + commonOperationService.getResolvedDiagnosisConceptIds());
 		
 		List<ArrayList<Integer>> partitions = getPartitions(encounterIds, 25);
 		
@@ -1268,17 +1244,10 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			        + context.getVisitUuid() + " remains PENDING");
 			return;
 		}
-		try {
-			shrSyncLogService.tryPushPendingRow(pushRow, transactionBundle);
+		shrSyncLogService.tryPushPendingRow(pushRow, transactionBundle);
+		if (pushRow.getStatus() == ShrSyncLogStatus.SUCCESS) {
 			System.err.println(logPrefix + " SHR sync log SUCCESS visit=" + context.getVisitUuid() + " id="
 			        + pushRow.getId());
-		}
-		catch (IllegalArgumentException ex) {
-			shrSyncLogService.markFailed(pushRow, null, ex.getMessage(), false);
-			throw new IllegalStateException(logPrefix + " SHR push blocked by validation: " + ex.getMessage(), ex);
-		}
-		catch (IllegalStateException ex) {
-			throw ex;
 		}
 	}
 	
@@ -1296,16 +1265,9 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			        + " (ShrSyncRetryTask will push when sync is enabled)");
 			return;
 		}
-		try {
-			shrSyncLogService.tryPushPendingRow(pending, transactionBundle);
+		shrSyncLogService.tryPushPendingRow(pending, transactionBundle);
+		if (pending.getStatus() == ShrSyncLogStatus.SUCCESS) {
 			System.err.println(logPrefix + " SHR sync log SUCCESS visit=" + context.getVisitUuid());
-		}
-		catch (IllegalArgumentException ex) {
-			shrSyncLogService.markFailed(pending, null, ex.getMessage(), false);
-			throw new IllegalStateException(logPrefix + " SHR push blocked by validation: " + ex.getMessage(), ex);
-		}
-		catch (IllegalStateException ex) {
-			throw ex;
 		}
 	}
 	

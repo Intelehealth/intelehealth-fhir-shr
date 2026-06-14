@@ -11,6 +11,7 @@ import org.hl7.fhir.r4.model.Encounter;
 import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Reference;
+import org.openmrs.module.ihshr.config.ClinicalTermCodingResolver;
 import org.openmrs.module.ihshr.domain.ParsedDiagnosis;
 import org.openmrs.module.ihshr.utils.DiagnosisConstants;
 
@@ -47,6 +48,12 @@ public class DiagnosisConditionBuilder {
 		if (StringUtils.isNotBlank(parsedDiagnosis.getCode())) {
 			code.addCoding(new Coding().setSystem(detectCodeSystem(parsedDiagnosis.getCode()))
 			        .setCode(parsedDiagnosis.getCode()).setDisplay(parsedDiagnosis.getDiagnosisText()));
+		} else {
+			org.hl7.fhir.r4.model.Coding dictionaryCoding = ClinicalTermCodingResolver.lookupMapping(
+			    parsedDiagnosis.getDiagnosisText(), null);
+			if (dictionaryCoding != null) {
+				code.addCoding(dictionaryCoding);
+			}
 		}
 		condition.setCode(code);
 		

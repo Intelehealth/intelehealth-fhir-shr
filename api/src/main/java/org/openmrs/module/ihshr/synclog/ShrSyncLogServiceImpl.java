@@ -118,7 +118,6 @@ public class ShrSyncLogServiceImpl implements ShrSyncLogService {
 		String reason = response != null && StringUtils.isNotBlank(response.getMessage()) ? response.getMessage()
 		        : "SHR push failed";
 		markFailed(pending, response, reason, false);
-		throw new IllegalStateException("SHR push failed: " + reason);
 	}
 	
 	@Override
@@ -139,12 +138,8 @@ public class ShrSyncLogServiceImpl implements ShrSyncLogService {
 			    response != null ? response.getStatusCode() : "null");
 			completePendingPush(pending, response, requestBundle);
 		}
-		catch (IllegalStateException ex) {
-			throw ex;
-		}
 		catch (Exception ex) {
 			markFailed(pending, null, ex.getMessage(), false);
-			throw new IllegalStateException("SHR push failed: " + ex.getMessage(), ex);
 		}
 	}
 	
@@ -212,8 +207,9 @@ public class ShrSyncLogServiceImpl implements ShrSyncLogService {
 			try {
 				supersedeRetrySource(failed);
 				attempt = startRetryAttempt(failed);
-				pushStoredBundle(attempt, failed, "sync retry");
-				processed++;
+				if (pushStoredBundle(attempt, failed, "sync retry")) {
+					processed++;
+				}
 			}
 			catch (Exception ex) {
 				LOG.error("SHR sync retry failed for log id {}: {}", failed.getId(), ex.getMessage(), ex);

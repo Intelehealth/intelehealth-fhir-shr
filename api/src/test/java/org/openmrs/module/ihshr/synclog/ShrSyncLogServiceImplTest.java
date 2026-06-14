@@ -59,12 +59,7 @@ public class ShrSyncLogServiceImplTest {
 		response.setStatusCode("400");
 		response.setMessage("Medication not found");
 		
-		try {
-			service.completePendingPush(row, response, new Bundle());
-		}
-		catch (IllegalStateException ex) {
-			/* expected */
-		}
+		service.completePendingPush(row, response, new Bundle());
 		
 		assertEquals(ShrSyncLogStatus.FAILED, row.getStatus());
 		assertNotNull(row.getNextRetryAt());
@@ -94,6 +89,28 @@ public class ShrSyncLogServiceImplTest {
 		assertEquals(ShrSyncLogStatus.SUCCESS, deferred.getStatus());
 		assertNull(failed.getNextRetryAt());
 		assertEquals(ShrSyncLogStatus.SUCCESS, findSavedRetryAttempt(repository.savedRows).getStatus());
+	}
+	
+	@Test
+	public void runSyncCycle_persistsRetryAttemptWhenPushReturnsHttp500() throws Exception {
+		ShrSyncLogServiceImpl service = new ShrSyncLogServiceImpl();
+		TrackingRepository repository = new TrackingRepository();
+		setField(service, "repository", repository);
+		setField(service, "visitSyncPush", new Http500VisitSyncPush(service));
+		setField(service, "publishedConfigShrSyncGateService", new FixedShrSyncGate(true));
+		
+		IntelehealthShrSyncLog failed = failedRow(1);
+		failed.setId(1L);
+		repository.failedRows = Collections.singletonList(failed);
+		
+		int processed = service.runSyncCycle(10);
+		
+		assertEquals(0, processed);
+		assertNull(failed.getNextRetryAt());
+		IntelehealthShrSyncLog attempt2 = findSavedRetryAttempt(repository.savedRows);
+		assertEquals(ShrSyncLogStatus.FAILED, attempt2.getStatus());
+		assertNotNull(attempt2.getNextRetryAt());
+		assertEquals(Integer.valueOf(500), attempt2.getHttpStatusCode());
 	}
 	
 	@Test
@@ -185,6 +202,24 @@ public class ShrSyncLogServiceImplTest {
 		public void alertPermanentPushFailure(IntelehealthShrSyncLog row) {
 			alertCalls++;
 			lastRow = row;
+		}
+	}
+	
+	private static final class Http500VisitSyncPush implements ShrVisitSyncPushContract {
+		
+		private final ShrSyncLogServiceImpl service;
+		
+		Http500VisitSyncPush(ShrSyncLogServiceImpl service) {
+			this.service = service;
+		}
+		
+		@Override
+		public boolean pushVisitForSyncLog(IntelehealthShrSyncLog pushRow, String operationLabel) {
+			FhirResponse response = new FhirResponse();
+			response.setStatusCode("500");
+			response.setMessage("HTTP 500 Internal Server Error");
+			service.completePendingPush(pushRow, response, new Bundle());
+			return false;
 		}
 	}
 	

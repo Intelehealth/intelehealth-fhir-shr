@@ -1,6 +1,7 @@
 package org.openmrs.module.ihshr.service;
 
 import org.openmrs.api.context.Context;
+import org.openmrs.module.ihmodule.api.patientexchange.model.IHMarker;
 import org.openmrs.module.ihmodule.api.patientexchange.service.IHMarkerService;
 
 /**
@@ -18,8 +19,21 @@ public final class ShrMarkerAccess {
 		return markerService().findByName(markerName).getLastSyncTime();
 	}
 	
+	public static IHMarker findMarker(String markerName) {
+		return markerService().findByName(markerName);
+	}
+	
 	public static void updateLastSync(String markerName) {
 		markerService().updateMarkerByName(markerName);
+	}
+	
+	public static void saveLastSyncTime(String markerName, String lastSyncTime) {
+		if (lastSyncTime == null || lastSyncTime.trim().isEmpty()) {
+			return;
+		}
+		IHMarker marker = markerService().findByName(markerName);
+		marker.setLastSyncTime(lastSyncTime.trim());
+		markerService().save(marker);
 	}
 	
 	private static IHMarkerService markerService() {

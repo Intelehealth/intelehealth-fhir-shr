@@ -38,6 +38,7 @@ public final class ShrLookupLoader {
 	
 	public static void clearCache() {
 		CACHE.clear();
+		OpenMrsConceptCodingResolver.clearCache();
 	}
 	
 	public static JsonObject load(String fileName) {

@@ -13,9 +13,7 @@ import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Observation.ObservationStatus;
 import org.hl7.fhir.r4.model.Reference;
 import org.openmrs.module.ihshr.backlog.UnmappedTermArtifact;
-import org.openmrs.module.ihshr.backlog.UnmappedTermBacklog;
-import org.openmrs.module.ihshr.backlog.UnmappedTermLookupType;
-import org.openmrs.module.ihshr.config.ShrLookupLoader;
+import org.openmrs.module.ihshr.config.ClinicalTermCodingResolver;
 import org.openmrs.module.ihshr.utils.ChiefComplaintConstants;
 
 public class ChiefComplaintAssociatedSymptomBuilder {
@@ -116,15 +114,14 @@ public class ChiefComplaintAssociatedSymptomBuilder {
 		if (symptomText == null) {
 			return null;
 		}
-		org.hl7.fhir.r4.model.Coding mapped = ShrLookupLoader.lookupMapping(CHIEF_COMPLAINT_MAPPINGS, symptomText.trim());
+		org.hl7.fhir.r4.model.Coding mapped = ClinicalTermCodingResolver.resolveMapping(symptomText.trim(),
+		    CHIEF_COMPLAINT_MAPPINGS, UnmappedTermArtifact.CHIEF_COMPLAINT);
 		if (mapped != null) {
 			return new String[] { mapped.getCode(), mapped.getDisplay() };
 		}
 		if ("anorexia".equalsIgnoreCase(symptomText.trim())) {
 			return new String[] { ChiefComplaintConstants.ANOREXIA_CODE, ChiefComplaintConstants.ANOREXIA_DISPLAY };
 		}
-		UnmappedTermBacklog.recordMiss(UnmappedTermArtifact.CHIEF_COMPLAINT, CHIEF_COMPLAINT_MAPPINGS,
-		    UnmappedTermLookupType.MAPPING, symptomText.trim());
 		return null;
 	}
 	

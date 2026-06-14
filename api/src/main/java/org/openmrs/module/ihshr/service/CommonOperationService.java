@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.openmrs.api.LocationService;
+import org.openmrs.api.context.Context;
 import org.openmrs.module.ihshr.config.StructuredObsConceptSettings;
 import org.hibernate.Query;
 import org.openmrs.module.ihshr.utils.IhshrDbSessionFactory;
@@ -712,5 +714,40 @@ public class CommonOperationService {
 		        + "WHERE e.uuid = :encounterUuid AND e.voided = 0 LIMIT 1";
 		Object value = createNativeQuery(sql).setString("encounterUuid", encounterUuid.trim()).uniqueResult();
 		return value != null ? value.toString() : null;
+	}
+	
+	public Integer findLocationIdByUuidOrName(String uuid, String name) {
+		if ((uuid == null || uuid.trim().isEmpty()) && (name == null || name.trim().isEmpty())) {
+			return 0;
+		}
+		String sql = "SELECT location_id FROM location WHERE retired = 0 AND (uuid = :uuid OR name = :name) LIMIT 1";
+		Query query = createNativeQuery(sql);
+		query.setString("uuid", uuid == null ? "" : uuid.trim());
+		query.setString("name", name == null ? "" : name.trim());
+		Object value = query.uniqueResult();
+		Integer id = toInteger(value);
+		return id == null ? Integer.valueOf(0) : id;
+	}
+	
+	public String findLocationUuidById(Integer locationId) {
+		if (locationId == null || locationId <= 0) {
+			return null;
+		}
+		Object value = createNativeQuery("SELECT uuid FROM location WHERE location_id = :locationId AND retired = 0")
+		        .setInteger("locationId", locationId).uniqueResult();
+		return value != null ? value.toString() : null;
+	}
+	
+	public void updateLocationUuid(Integer locationId, String uuid) {
+		if (locationId == null || locationId <= 0 || uuid == null || uuid.trim().isEmpty()) {
+			return;
+		}
+		LocationService locationService = Context.getLocationService();
+		org.openmrs.Location location = locationService.getLocation(locationId);
+		if (location == null) {
+			return;
+		}
+		location.setUuid(uuid.trim());
+		locationService.saveLocation(location);
 	}
 }

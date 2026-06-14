@@ -89,12 +89,12 @@
 	</globalProperty>
 	<globalProperty>
 		<property>ihshr.gofr.openhim.url</property>
-		<defaultValue>http://localhost:5001/fhir/DEFAULT</defaultValue>
+		<defaultValue>http://192.168.19.152:6001/shr/DEFAULT</defaultValue>
 		<description>GOFR FHIR base URL exposed via OpenHIM.</description>
 	</globalProperty>
 	<globalProperty>
 		<property>ihshr.gofr.openhim.clientid.password.basic.auth</property>
-		<defaultValue>openmrs:Admin123</defaultValue>
+		<defaultValue>fhir_app:Admin123</defaultValue>
 		<description>Basic auth for GOFR/OpenHIM (username:password).</description>
 	</globalProperty>
 	<globalProperty>

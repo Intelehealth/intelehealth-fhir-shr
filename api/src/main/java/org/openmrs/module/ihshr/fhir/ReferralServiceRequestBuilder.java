@@ -11,9 +11,7 @@ import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.ServiceRequest;
 import org.openmrs.module.ihshr.backlog.UnmappedTermArtifact;
-import org.openmrs.module.ihshr.backlog.UnmappedTermBacklog;
-import org.openmrs.module.ihshr.backlog.UnmappedTermLookupType;
-import org.openmrs.module.ihshr.config.ShrLookupLoader;
+import org.openmrs.module.ihshr.config.ClinicalTermCodingResolver;
 import org.openmrs.module.ihshr.domain.ParsedReferral;
 import org.openmrs.module.ihshr.utils.ReferralConstants;
 
@@ -41,12 +39,10 @@ public class ReferralServiceRequestBuilder {
 		
 		CodeableConcept code = new CodeableConcept();
 		code.setText(referral.getSpecialty());
-		Coding snomed = ShrLookupLoader.lookupMapping(REFERRAL_SPECIALTY_MAPPINGS, referral.getSpecialty());
+		Coding snomed = ClinicalTermCodingResolver.resolveMapping(referral.getSpecialty(), REFERRAL_SPECIALTY_MAPPINGS,
+		    UnmappedTermArtifact.REFERRAL_SPECIALTY);
 		if (snomed != null) {
 			code.addCoding(snomed);
-		} else if (StringUtils.isNotBlank(referral.getSpecialty())) {
-			UnmappedTermBacklog.recordMiss(UnmappedTermArtifact.REFERRAL_SPECIALTY, REFERRAL_SPECIALTY_MAPPINGS,
-			    UnmappedTermLookupType.MAPPING, referral.getSpecialty());
 		}
 		serviceRequest.setCode(code);
 		

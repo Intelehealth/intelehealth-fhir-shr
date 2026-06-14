@@ -13,7 +13,7 @@ import org.hl7.fhir.r4.model.Observation.ObservationStatus;
 import org.openmrs.module.ihshr.backlog.UnmappedTermArtifact;
 import org.openmrs.module.ihshr.backlog.UnmappedTermBacklog;
 import org.openmrs.module.ihshr.backlog.UnmappedTermLookupType;
-import org.openmrs.module.ihshr.config.ShrLookupLoader;
+import org.openmrs.module.ihshr.config.ClinicalTermCodingResolver;
 import org.openmrs.module.ihshr.domain.ParsedExamCategory;
 import org.openmrs.module.ihshr.domain.ParsedFinding;
 import org.openmrs.module.ihshr.parser.PhysicalExamValueTexts;
@@ -63,9 +63,9 @@ public class PhysicalExamObservationBuilder {
 			if (StringUtils.isNotBlank(finding.getFinding())) {
 				componentKey = finding.getItem() + ": " + finding.getFinding();
 			}
-			Coding componentSnomed = ShrLookupLoader.lookupMapping(PHYSICAL_EXAM_MAPPINGS, componentKey);
+			Coding componentSnomed = ClinicalTermCodingResolver.lookupMapping(componentKey, PHYSICAL_EXAM_MAPPINGS);
 			if (componentSnomed == null) {
-				componentSnomed = ShrLookupLoader.lookupMapping(PHYSICAL_EXAM_MAPPINGS, finding.getItem());
+				componentSnomed = ClinicalTermCodingResolver.lookupMapping(finding.getItem(), PHYSICAL_EXAM_MAPPINGS);
 			}
 			if (componentSnomed != null) {
 				componentCode.addCoding(componentSnomed);
@@ -103,14 +103,13 @@ public class PhysicalExamObservationBuilder {
 	
 	private static CodeableConcept bodySiteFor(String categoryName) {
 		CodeableConcept bodySite = new CodeableConcept();
-		Coding site = ShrLookupLoader.lookupCategory(EXAM_BODYSITE_MAPPINGS, categoryName);
+		Coding site = ClinicalTermCodingResolver.resolveCategory(categoryName, EXAM_BODYSITE_MAPPINGS,
+		    UnmappedTermArtifact.PHYSICAL_EXAM_BODYSITE);
 		if (site != null) {
 			bodySite.addCoding(site);
 			bodySite.setText(site.getDisplay());
 		} else {
 			bodySite.setText(categoryName);
-			UnmappedTermBacklog.recordMiss(UnmappedTermArtifact.PHYSICAL_EXAM_BODYSITE, EXAM_BODYSITE_MAPPINGS,
-			    UnmappedTermLookupType.CATEGORY, categoryName);
 		}
 		return bodySite;
 	}

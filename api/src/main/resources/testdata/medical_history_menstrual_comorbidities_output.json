@@ -9,7 +9,7 @@
     "resourceType": "Bundle"
   },
   "basename": "medical_history_menstrual_comorbidities",
-  "sharedNote": "\u2022 Menstrual History* - Status - Patient is pre-menopausal.\n\u2022 Known comorbidities - Diabetes - Since - 4 years. Current medication - No. Status - Testing.",
+  "sharedNote": "Menstrual History* - Status - Patient is pre-menopausal.\nKnown comorbidities - Diabetes - Since - 4 years. Current medication - No. Status - Testing.",
   "parsedFrom": "en",
   "resourceCounts": {
     "total": 0,

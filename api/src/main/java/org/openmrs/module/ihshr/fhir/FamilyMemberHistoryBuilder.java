@@ -11,9 +11,7 @@ import org.hl7.fhir.r4.model.FamilyMemberHistory.FamilyHistoryStatus;
 import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.Observation;
 import org.openmrs.module.ihshr.backlog.UnmappedTermArtifact;
-import org.openmrs.module.ihshr.backlog.UnmappedTermBacklog;
-import org.openmrs.module.ihshr.backlog.UnmappedTermLookupType;
-import org.openmrs.module.ihshr.config.ShrLookupLoader;
+import org.openmrs.module.ihshr.config.ClinicalTermCodingResolver;
 import org.openmrs.module.ihshr.domain.ParsedFamilyHistoryRelative;
 import org.openmrs.module.ihshr.utils.FamilyHistoryConstants;
 
@@ -43,12 +41,10 @@ public class FamilyMemberHistoryBuilder {
 			FamilyMemberHistoryConditionComponent condition = history.addCondition();
 			CodeableConcept code = new CodeableConcept();
 			code.setText(conditionText);
-			Coding snomed = ShrLookupLoader.lookupMapping("family-history-conditions.json", conditionText);
+			Coding snomed = ClinicalTermCodingResolver.resolveMapping(conditionText, "family-history-conditions.json",
+			    UnmappedTermArtifact.FAMILY_HISTORY_CONDITION);
 			if (snomed != null) {
 				code.addCoding(snomed);
-			} else {
-				UnmappedTermBacklog.recordMiss(UnmappedTermArtifact.FAMILY_HISTORY_CONDITION,
-				    "family-history-conditions.json", UnmappedTermLookupType.MAPPING, conditionText);
 			}
 			condition.setCode(code);
 		}

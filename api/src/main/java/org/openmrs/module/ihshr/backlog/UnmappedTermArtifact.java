@@ -19,6 +19,8 @@ public enum UnmappedTermArtifact {
 	
 	MEDICAL_HISTORY_CONDITION("medical_history_condition", "family-history-conditions.json"),
 	
+	DIAGNOSIS("diagnosis", null),
+	
 	REFERRAL_SPECIALTY("referral_specialty", "referral-specialty-mappings.json"),
 	
 	UNKNOWN("unknown", null);

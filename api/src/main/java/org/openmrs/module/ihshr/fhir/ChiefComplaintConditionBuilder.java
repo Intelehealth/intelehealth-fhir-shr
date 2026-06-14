@@ -9,9 +9,7 @@ import org.hl7.fhir.r4.model.DateTimeType;
 import org.hl7.fhir.r4.model.Identifier;
 import org.hl7.fhir.r4.model.Observation;
 import org.openmrs.module.ihshr.backlog.UnmappedTermArtifact;
-import org.openmrs.module.ihshr.backlog.UnmappedTermBacklog;
-import org.openmrs.module.ihshr.backlog.UnmappedTermLookupType;
-import org.openmrs.module.ihshr.config.ShrLookupLoader;
+import org.openmrs.module.ihshr.config.ClinicalTermCodingResolver;
 import org.openmrs.module.ihshr.domain.ParsedComplaint;
 import org.openmrs.module.ihshr.utils.ChiefComplaintConstants;
 
@@ -41,16 +39,14 @@ public class ChiefComplaintConditionBuilder {
 		
 		CodeableConcept code = new CodeableConcept();
 		code.setText(complaint.getSymptom());
-		Coding snomed = ShrLookupLoader.lookupMapping(CHIEF_COMPLAINT_MAPPINGS, complaint.getSymptom());
+		Coding snomed = ClinicalTermCodingResolver.resolveMapping(complaint.getSymptom(), CHIEF_COMPLAINT_MAPPINGS,
+		    UnmappedTermArtifact.CHIEF_COMPLAINT);
 		if (snomed == null && "anorexia".equalsIgnoreCase(StringUtils.trimToEmpty(complaint.getSymptom()))) {
 			snomed = new Coding().setSystem(ChiefComplaintConstants.SNOMED_SYSTEM)
 			        .setCode(ChiefComplaintConstants.ANOREXIA_CODE).setDisplay(ChiefComplaintConstants.ANOREXIA_DISPLAY);
 		}
 		if (snomed != null) {
 			code.addCoding(snomed);
-		} else if (StringUtils.isNotBlank(complaint.getSymptom())) {
-			UnmappedTermBacklog.recordMiss(UnmappedTermArtifact.CHIEF_COMPLAINT, CHIEF_COMPLAINT_MAPPINGS,
-			    UnmappedTermLookupType.MAPPING, complaint.getSymptom());
 		}
 		condition.setCode(code);
 		

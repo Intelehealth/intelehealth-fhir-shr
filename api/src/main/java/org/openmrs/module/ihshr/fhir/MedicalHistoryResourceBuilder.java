@@ -21,9 +21,7 @@ import org.hl7.fhir.r4.model.Observation.ObservationComponentComponent;
 import org.hl7.fhir.r4.model.Observation.ObservationStatus;
 import org.hl7.fhir.r4.model.StringType;
 import org.openmrs.module.ihshr.backlog.UnmappedTermArtifact;
-import org.openmrs.module.ihshr.backlog.UnmappedTermBacklog;
-import org.openmrs.module.ihshr.backlog.UnmappedTermLookupType;
-import org.openmrs.module.ihshr.config.ShrLookupLoader;
+import org.openmrs.module.ihshr.config.ClinicalTermCodingResolver;
 import org.openmrs.module.ihshr.domain.ParsedMedicalHistoryTopic;
 import org.openmrs.module.ihshr.utils.MedicalHistoryConstants;
 
@@ -184,12 +182,10 @@ public class MedicalHistoryResourceBuilder {
 		CodeableConcept code = new CodeableConcept();
 		code.setText(conditionText);
 		if (StringUtils.isNotBlank(lookupFile)) {
-			Coding snomed = ShrLookupLoader.lookupMapping(lookupFile, conditionText);
+			Coding snomed = ClinicalTermCodingResolver.resolveMapping(conditionText, lookupFile,
+			    UnmappedTermArtifact.MEDICAL_HISTORY_CONDITION);
 			if (snomed != null) {
 				code.addCoding(snomed);
-			} else {
-				UnmappedTermBacklog.recordMiss(UnmappedTermArtifact.MEDICAL_HISTORY_CONDITION, lookupFile,
-				    UnmappedTermLookupType.MAPPING, conditionText);
 			}
 		}
 		condition.setCode(code);
