@@ -4,7 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hl7.fhir.r4.model.Binary;
 import org.hl7.fhir.r4.model.Bundle;
 import org.openmrs.module.ihshr.config.FhirConfig;
-import org.openmrs.module.ihshr.utils.IhshrPropertyResolver;
+import org.openmrs.module.ihshr.utils.ShrFhirUrlSupport;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -59,13 +59,7 @@ public class ShrFhirPullClient {
 	}
 	
 	private String[] allowedBaseUrls() {
-		String pullBase = IhshrPropertyResolver.resolve("shr.pull.openhim.url");
-		String opencrBase = IhshrPropertyResolver.resolve("opencr.openhim.url");
-		String shrBase = IhshrPropertyResolver.resolve("opencr.shr.url");
-		if (StringUtils.isNotBlank(pullBase)) {
-			return new String[] { normalizeBase(pullBase), normalizeBase(opencrBase), normalizeBase(shrBase) };
-		}
-		return new String[] { normalizeBase(opencrBase), normalizeBase(shrBase) };
+		return new String[] { normalizeBase(ShrFhirUrlSupport.resolveShrFhirBaseUrl()) };
 	}
 	
 	private static String normalizeBase(String base) {

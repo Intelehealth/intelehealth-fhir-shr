@@ -13,6 +13,11 @@ import org.openmrs.module.ihshr.config.ClinicalTermCodingResolver;
 import org.openmrs.module.ihshr.domain.ParsedComplaint;
 import org.openmrs.module.ihshr.utils.ChiefComplaintConstants;
 
+/**
+ * Maps one parsed chief-complaint symptom onto a FHIR R4 {@link Condition} for SHR push. Used by
+ * {@link ChiefComplaintTransfer}; multiple Conditions may be produced from a single obs when the UI
+ * lists several {@code ►<b>Symptom</b>} blocks.
+ */
 public class ChiefComplaintConditionBuilder {
 	
 	private static final String CHIEF_COMPLAINT_MAPPINGS = "chief-complaint-mappings.json";
@@ -21,6 +26,7 @@ public class ChiefComplaintConditionBuilder {
 		Condition condition = new Condition();
 		condition.setId((String) null);
 		
+		// Stable id per symptom index within the same obs (obsUuid::cc-0, ::cc-1, …).
 		Identifier identifier = new Identifier();
 		identifier.setSystem(ChiefComplaintConstants.IDENTIFIER_SYSTEM);
 		identifier.setValue(ChiefComplaintConstants.conditionIdentifier(obsUuid, complaint.getIndex()));
@@ -39,12 +45,9 @@ public class ChiefComplaintConditionBuilder {
 		
 		CodeableConcept code = new CodeableConcept();
 		code.setText(complaint.getSymptom());
+		// Layer 1 OpenMRS concept map, then chief-complaint-mappings.json; code.text is always kept.
 		Coding snomed = ClinicalTermCodingResolver.resolveMapping(complaint.getSymptom(), CHIEF_COMPLAINT_MAPPINGS,
 		    UnmappedTermArtifact.CHIEF_COMPLAINT);
-		if (snomed == null && "anorexia".equalsIgnoreCase(StringUtils.trimToEmpty(complaint.getSymptom()))) {
-			snomed = new Coding().setSystem(ChiefComplaintConstants.SNOMED_SYSTEM)
-			        .setCode(ChiefComplaintConstants.ANOREXIA_CODE).setDisplay(ChiefComplaintConstants.ANOREXIA_DISPLAY);
-		}
 		if (snomed != null) {
 			code.addCoding(snomed);
 		}
@@ -71,6 +74,7 @@ public class ChiefComplaintConditionBuilder {
 			}
 		}
 		
+		// Full stripped obs text is duplicated on each Condition when multiple symptoms share one obs.
 		if (StringUtils.isNotBlank(complaint.getSharedNoteText())) {
 			condition.addNote().setText(complaint.getSharedNoteText());
 		}

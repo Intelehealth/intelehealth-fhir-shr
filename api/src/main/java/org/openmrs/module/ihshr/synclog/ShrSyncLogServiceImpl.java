@@ -145,6 +145,20 @@ public class ShrSyncLogServiceImpl implements ShrSyncLogService {
 	
 	@Override
 	@Transactional
+	/**
+	 * Executes one scheduler sync cycle for SHR push logs.
+	 * <p>
+	 * Order is intentional:
+	 * <ol>
+	 * <li>Push rows currently in {@code PENDING_AWAITING_PUSH}</li>
+	 * <li>Use any remaining slot capacity to replay {@code FAILED} rows</li>
+	 * </ol>
+	 * The gate {@code publishedConfigShrSyncGateService.isShrSyncEnabled()} must be true,
+	 * otherwise nothing is processed.
+	 * 
+	 * @param limitPerCycle max rows to process in this cycle (minimum effective value is 1)
+	 * @return total rows processed across pending-push + failed-replay steps
+	 */
 	public int runSyncCycle(int limitPerCycle) {
 		if (!publishedConfigShrSyncGateService.isShrSyncEnabled()) {
 			return 0;

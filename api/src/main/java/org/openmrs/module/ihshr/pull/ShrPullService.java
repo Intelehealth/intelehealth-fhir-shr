@@ -5,8 +5,14 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.apache.commons.lang3.StringUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hl7.fhir.r4.model.Binary;
 import org.hl7.fhir.r4.model.Bundle;
 import org.openmrs.module.ihshr.config.FhirConfig;
@@ -20,6 +26,8 @@ import org.springframework.stereotype.Service;
  */
 @Service("ihshrShrPullService")
 public class ShrPullService {
+	
+	private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 	
 	@Autowired
 	@Qualifier("ihshrShrPatientResolver")
@@ -46,19 +54,21 @@ public class ShrPullService {
 	}
 	
 	public ShrPullResult getHistory(String openmrsPatientUuid, ShrHistoryRequest request) {
+		enforceAccess(request);
 		ShrResolvedPatient patient = patientResolver.resolve(openmrsPatientUuid);
 		if (!patient.isShrPatientFound()) {
 			return emptyHistoryResult(patient, request, "SHR patient not found for CRUID " + patient.getCruid());
 		}
-		List<ShrFhirQuery> queries = ShrQueryTranslator.buildHistoryQueries(patient.getShrPatientId(), request);
+		List<ShrFhirQuery> queries = ShrQueryTranslator.buildHistoryQueries(patient.getCruid(), request);
 		return executeQueries(patient, request, queries, queries.size() > 1);
 	}
 	
-	public ShrPullResult getPage(String openmrsPatientUuid, String pageUrl, String format) {
-		ShrResolvedPatient patient = patientResolver.resolve(openmrsPatientUuid);
-		fhirPullClient.assertAllowedPageUrl(pageUrl);
+	public ShrPullResult getPage(String openmrsPatientUuid, String pageUrl, String format, boolean includeLocalEcho) {
 		ShrHistoryRequest request = new ShrHistoryRequest();
 		request.setFormat(format);
+		request.setIncludeLocalEcho(ShrPullAccessControl.resolveIncludeLocalEcho(includeLocalEcho));
+		ShrResolvedPatient patient = patientResolver.resolve(openmrsPatientUuid);
+		fhirPullClient.assertAllowedPageUrl(pageUrl);
 		List<ShrFhirQuery> queries = new ArrayList<ShrFhirQuery>();
 		queries.add(new ShrFhirQuery("page", "Bundle", pageUrl.trim()));
 		return executeQueries(patient, request, queries, false);
@@ -68,16 +78,16 @@ public class ShrPullService {
 		if (StringUtils.isBlank(since)) {
 			throw new ShrPullException(ShrPullErrorCode.INVALID_FILTER, "since parameter is required for refresh");
 		}
+		boolean resolvedEcho = ShrPullAccessControl.resolveIncludeLocalEcho(includeLocalEcho);
 		ShrResolvedPatient patient = patientResolver.resolve(openmrsPatientUuid);
+		ShrHistoryRequest request = buildRefreshRequest(format, count, resolvedEcho);
 		if (!patient.isShrPatientFound()) {
-			return emptyHistoryResult(patient, buildRefreshRequest(format, count, includeLocalEcho),
-			    "SHR patient not found for CRUID " + patient.getCruid());
+			return emptyHistoryResult(patient, request, "SHR patient not found for CRUID " + patient.getCruid());
 		}
-		ShrFhirQuery query = ShrQueryTranslator.buildRefreshQuery(patient.getShrPatientId(), since.trim(), count,
-		    includeLocalEcho);
+		ShrFhirQuery query = ShrQueryTranslator.buildRefreshQuery(patient.getCruid(), since.trim(), count, resolvedEcho);
 		List<ShrFhirQuery> queries = new ArrayList<ShrFhirQuery>();
 		queries.add(query);
-		return executeQueries(patient, buildRefreshRequest(format, count, includeLocalEcho), queries, false);
+		return executeQueries(patient, request, queries, false);
 	}
 	
 	public ShrPullResult searchResource(String openmrsPatientUuid, String resourceType, Map<String, String> extraParams,
@@ -85,38 +95,50 @@ public class ShrPullService {
 		if (StringUtils.isBlank(resourceType)) {
 			throw new ShrPullException(ShrPullErrorCode.INVALID_FILTER, "resourceType is required");
 		}
+		boolean resolvedEcho = ShrPullAccessControl.resolveIncludeLocalEcho(includeLocalEcho);
 		ShrResolvedPatient patient = patientResolver.resolve(openmrsPatientUuid);
+		ShrHistoryRequest request = buildSearchRequest(format, resolvedEcho);
 		if (!patient.isShrPatientFound()) {
-			return emptyHistoryResult(patient, buildSearchRequest(format, includeLocalEcho),
-			    "SHR patient not found for CRUID " + patient.getCruid());
+			return emptyHistoryResult(patient, request, "SHR patient not found for CRUID " + patient.getCruid());
 		}
-		String url = ShrQueryTranslator.buildResourceSearchUrl(patient.getShrPatientId(), resourceType.trim(), extraParams,
-		    includeLocalEcho);
+		String url = ShrQueryTranslator.buildResourceSearchUrl(patient.getCruid(), resourceType.trim(), extraParams,
+		    resolvedEcho);
 		List<ShrFhirQuery> queries = new ArrayList<ShrFhirQuery>();
 		queries.add(new ShrFhirQuery("search-" + resourceType, resourceType, url));
-		return executeQueries(patient, buildSearchRequest(format, includeLocalEcho), queries, false);
+		return executeQueries(patient, request, queries, false);
 	}
 	
 	public Map<String, Object> readBinaryContent(String binaryId) {
+		ShrBinaryContent content = readBinaryBytes(binaryId);
+		Map<String, Object> body = new LinkedHashMap<String, Object>();
+		body.put("id", content.getId());
+		body.put("contentType", content.getContentType());
+		body.put("data", content.getData() != null ? java.util.Base64.getEncoder().encodeToString(content.getData()) : null);
+		return body;
+	}
+	
+	public ShrBinaryContent readBinaryBytes(String binaryId) {
 		if (StringUtils.isBlank(binaryId)) {
 			throw new ShrPullException(ShrPullErrorCode.INVALID_FILTER, "Binary id is required");
 		}
 		Binary binary = fhirPullClient.readBinary(binaryId.trim());
-		Map<String, Object> body = new LinkedHashMap<String, Object>();
-		body.put("id", binary.getIdElement().getIdPart());
-		body.put("contentType", binary.hasContentType() ? binary.getContentType() : null);
-		body.put("data", binary.hasData() ? binary.getDataElement().getValueAsString() : null);
-		return body;
+		byte[] data = binary.hasData() ? binary.getData() : new byte[0];
+		String contentType = binary.hasContentType() ? binary.getContentType() : "application/octet-stream";
+		return new ShrBinaryContent(binary.getIdElement().getIdPart(), contentType, data);
+	}
+	
+	private static void enforceAccess(ShrHistoryRequest request) {
+		if (request != null) {
+			request.setIncludeLocalEcho(ShrPullAccessControl.resolveIncludeLocalEcho(request.isIncludeLocalEcho()));
+		}
 	}
 	
 	private ShrPullResult executeQueries(ShrResolvedPatient patient, ShrHistoryRequest request, List<ShrFhirQuery> queries,
 	        boolean mergeResults) {
-		List<ShrBundleMerger.ExecutedQuery> executed = new ArrayList<ShrBundleMerger.ExecutedQuery>();
+		List<ShrBundleMerger.ExecutedQuery> executed = executeQueriesParallel(queries);
 		List<Bundle> rawBundles = new ArrayList<Bundle>();
-		for (ShrFhirQuery query : queries) {
-			Bundle bundle = fhirPullClient.search(query.getUrl());
-			executed.add(new ShrBundleMerger.ExecutedQuery(query, bundle));
-			rawBundles.add(bundle);
+		for (ShrBundleMerger.ExecutedQuery row : executed) {
+			rawBundles.add(row.getBundle());
 		}
 		Bundle merged = mergeResults ? ShrBundleMerger.merge(rawBundles) : firstBundle(rawBundles);
 		ShrPullResult result = new ShrPullResult();
@@ -129,6 +151,54 @@ public class ShrPullService {
 		result.setTotal(ShrBundleMerger.extractTotal(merged));
 		result.setSourceUri(ShrPushMetaApplicator.resolveInstallationSourceUri());
 		return result;
+	}
+	
+	private List<ShrBundleMerger.ExecutedQuery> executeQueriesParallel(List<ShrFhirQuery> queries) {
+		if (queries == null || queries.isEmpty()) {
+			return new ArrayList<ShrBundleMerger.ExecutedQuery>();
+		}
+		if (queries.size() == 1) {
+			List<ShrBundleMerger.ExecutedQuery> single = new ArrayList<ShrBundleMerger.ExecutedQuery>();
+			ShrFhirQuery query = queries.get(0);
+			single.add(new ShrBundleMerger.ExecutedQuery(query, fhirPullClient.search(query.getUrl())));
+			return single;
+		}
+		int poolSize = Math.min(queries.size(), ShrPullSettings.maxParallelQueries());
+		ExecutorService executor = Executors.newFixedThreadPool(poolSize);
+		try {
+			List<Future<ShrBundleMerger.ExecutedQuery>> futures = new ArrayList<Future<ShrBundleMerger.ExecutedQuery>>();
+			for (final ShrFhirQuery query : queries) {
+				futures.add(executor.submit(new Callable<ShrBundleMerger.ExecutedQuery>() {
+					
+					@Override
+					public ShrBundleMerger.ExecutedQuery call() {
+						return new ShrBundleMerger.ExecutedQuery(query, fhirPullClient.search(query.getUrl()));
+					}
+				}));
+			}
+			List<ShrBundleMerger.ExecutedQuery> executed = new ArrayList<ShrBundleMerger.ExecutedQuery>();
+			for (Future<ShrBundleMerger.ExecutedQuery> future : futures) {
+				try {
+					executed.add(future.get());
+				}
+				catch (ExecutionException ex) {
+					Throwable cause = ex.getCause();
+					if (cause instanceof ShrPullException) {
+						throw (ShrPullException) cause;
+					}
+					throw new ShrPullException(ShrPullErrorCode.SHR_UPSTREAM_ERROR, cause != null ? cause.getMessage()
+					        : ex.getMessage(), cause);
+				}
+				catch (InterruptedException ex) {
+					Thread.currentThread().interrupt();
+					throw new ShrPullException(ShrPullErrorCode.SHR_TIMEOUT, "SHR pull query interrupted", ex);
+				}
+			}
+			return executed;
+		}
+		finally {
+			executor.shutdown();
+		}
 	}
 	
 	private static Bundle firstBundle(List<Bundle> bundles) {
@@ -183,9 +253,19 @@ public class ShrPullService {
 		envelope.put("pagination", paginationMap(result));
 		envelope.put("queries", ShrBundleMerger.toBundleSummaries(result.getExecuted()));
 		if (result.getMerged() != null) {
-			envelope.put("bundle", encodeBundle(result.getMerged()));
+			envelope.put("bundle", toBundleJson(result.getMerged()));
 		}
 		return envelope;
+	}
+	
+	private Object toBundleJson(Bundle bundle) {
+		String json = encodeBundle(bundle);
+		try {
+			return JSON_MAPPER.readValue(json, Object.class);
+		}
+		catch (Exception ex) {
+			return json;
+		}
 	}
 	
 	private static Map<String, Object> patientMap(ShrResolvedPatient patient) {

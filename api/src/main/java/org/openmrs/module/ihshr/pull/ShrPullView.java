@@ -4,7 +4,7 @@ package org.openmrs.module.ihshr.pull;
  * Doc §4.2 / §9 preset pull views.
  */
 public enum ShrPullView {
-	DEFAULT, PROBLEMS, MEDICATIONS, VITALS, FAMILY_HISTORY, REFERRALS, FOLLOW_UP, DOCUMENTS, CUSTOM;
+	DEFAULT, PROBLEMS, MEDICATIONS, VITALS, LABS, FAMILY_HISTORY, REFERRALS, FOLLOW_UP, DOCUMENTS, CUSTOM;
 	
 	public static ShrPullView fromParam(String value) {
 		if (value == null || value.trim().isEmpty()) {

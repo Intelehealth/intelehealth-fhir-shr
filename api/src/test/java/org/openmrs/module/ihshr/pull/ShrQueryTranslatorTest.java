@@ -1,6 +1,7 @@
 package org.openmrs.module.ihshr.pull;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
@@ -24,14 +25,14 @@ public class ShrQueryTranslatorTest {
 	}
 	
 	@Test
-	public void defaultTimelineIncludesNoEchoIncludesAndRevincludes() {
+	public void defaultTimelineIncludesIncludesAndRevincludes() {
 		ShrHistoryRequest request = new ShrHistoryRequest();
 		request.setIncludeLocalEcho(false);
 		List<ShrFhirQuery> queries = ShrQueryTranslator.buildHistoryQueries("shr-patient-1", request);
 		assertEquals(1, queries.size());
 		String url = queries.get(0).getUrl();
-		assertTrue(url.contains("subject=Patient%2Fshr-patient-1"));
-		assertTrue(url.contains("_source%3Anot="));
+		assertTrue(url.contains("patient.identifier=urn%3Aintelehealth%3Acruid%7Cshr-patient-1"));
+		assertFalse(url.contains("_source%3Anot="));
 		assertTrue(url.contains("_include=Encounter%3Aparticipant"));
 		assertTrue(url.contains("_revinclude=Observation%3Aencounter"));
 		assertTrue(url.contains("_revinclude=Provenance%3Atarget"));
@@ -52,9 +53,10 @@ public class ShrQueryTranslatorTest {
 	@Test
 	public void refreshEverythingUsesPatientOperation() {
 		ShrFhirQuery query = ShrQueryTranslator.buildRefreshQuery("99", "2026-01-01T00:00:00Z", 25, false);
-		assertTrue(query.getUrl().startsWith("Patient/99/$everything?"));
-		assertTrue(query.getUrl().contains("_since=2026-01-01T00%3A00%3A00Z"));
-		assertTrue(query.getUrl().contains("_source%3Anot="));
+		assertTrue(query.getUrl().startsWith("Encounter?"));
+		assertTrue(query.getUrl().contains("patient.identifier=urn%3Aintelehealth%3Acruid%7C99"));
+		assertTrue(query.getUrl().contains("_lastUpdated=ge2026-01-01T00%3A00%3A00Z"));
+		assertFalse(query.getUrl().contains("_source%3Anot="));
 	}
 	
 	@Test
@@ -77,11 +79,40 @@ public class ShrQueryTranslatorTest {
 		assertEquals(1, queries.size());
 		String url = queries.get(0).getUrl();
 		assertTrue(url.startsWith("ServiceRequest?"));
+		assertTrue(url.contains("intent=referral"));
 		assertTrue(url.contains("category="));
 		assertTrue(url.contains("urn%3Aintelehealth%3Aservice-request-type%7Creferral"));
 		assertTrue(url.contains("_include=ServiceRequest%3Arequester"));
 		assertTrue(url.contains("_include=ServiceRequest%3Aencounter"));
 		assertTrue(url.contains("_sort=-authored"));
+	}
+	
+	@Test
+	public void vitalsPresetDefaultsToAscendingSort() {
+		ShrHistoryRequest request = ShrHistoryRequest.fromQueryParams(java.util.Collections.singletonMap("view", "vitals"));
+		List<ShrFhirQuery> queries = ShrQueryTranslator.buildHistoryQueries("7", request);
+		assertEquals(1, queries.size());
+		String url = queries.get(0).getUrl();
+		assertTrue(url.contains("_sort=date"));
+		assertFalse(url.contains("_sort=-date"));
+	}
+	
+	@Test
+	public void labsPresetUsesCompositeSearch() {
+		java.util.Map<String, String> params = new java.util.HashMap<String, String>();
+		params.put("view", "labs");
+		params.put("labCode", "2339-0");
+		params.put("labValue", "180");
+		ShrHistoryRequest request = ShrHistoryRequest.fromQueryParams(params);
+		List<ShrFhirQuery> queries = ShrQueryTranslator.buildHistoryQueries("7", request);
+		assertEquals(1, queries.size());
+		String url = queries.get(0).getUrl();
+		assertTrue(url.startsWith("Observation?"));
+		assertTrue(url.contains("category=laboratory"));
+		assertTrue(url.contains("code-value-quantity="));
+		assertTrue(url.contains("2339-0"));
+		assertTrue(url.contains("%24gt180"));
+		assertTrue(url.contains("_sort=date"));
 	}
 	
 	@Test

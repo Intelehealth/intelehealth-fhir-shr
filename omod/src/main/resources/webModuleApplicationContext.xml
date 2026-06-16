@@ -9,6 +9,5 @@
 
 	<context:component-scan base-package="org.openmrs.module.ihshr.web.controller" />
 	<context:component-scan base-package="org.openmrs.module.ihshr.globalexp" />
-	<context:component-scan base-package="org.openmrs.module.ihshr.scheduler" />
 
 </beans>

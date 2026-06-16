@@ -50,7 +50,9 @@ public final class ShrCruidPatientSupport {
 		String fullUrl = fullUrlForCruid(cruid);
 		Bundle.BundleEntryComponent entry = new Bundle.BundleEntryComponent();
 		entry.setFullUrl(fullUrl);
-		entry.setResource(buildShadowPatient(cruid));
+		Patient patient = buildShadowPatient(cruid);
+		ShrPushMetaApplicator.applyPushMeta(patient);
+		entry.setResource(patient);
 		entry.getRequest().setMethod(Bundle.HTTPVerb.POST).setUrl("Patient")
 		        .setIfNoneExist("identifier=" + CruidConstants.IDENTIFIER_SYSTEM + "|" + cruid);
 		return entry;

@@ -5,9 +5,16 @@ import org.json.JSONObject;
 import org.openmrs.module.ihshr.domain.ParsedDiagnosis;
 
 /**
- * Parses diagnosis strings from obs.value_text. Supports: -
- * "82272006::Acute rhinitis:Primary & Confirmed" - JSON wrappers: {"diagnosis":"...",
- * "type":"Provisional"}
+ * Parses diagnosis obs {@code value_text} (concept 163219) into {@link ParsedDiagnosis} for
+ * {@link org.openmrs.module.ihshr.fhir.DiagnosisTransfer}.
+ * <p>
+ * Two input shapes:
+ * <ul>
+ * <li>Structured: {@code 82272006::Acute rhinitis:Primary & Confirmed} — optional SNOMED/ICD code,
+ * display name, encounter rank (Primary/Secondary), and verification certainty after {@code &}.</li>
+ * <li>JSON wrapper: {@code "diagnosis":"...", "type":"Provisional"} — {@code type} is certainty
+ * when the inner diagnosis string has no {@code &} qualifier segment.</li>
+ * </ul>
  */
 public class DiagnosisParser {
 	
@@ -30,7 +37,7 @@ public class DiagnosisParser {
 			return null;
 		}
 		
-		// In legacy JSON payloads, "type" often means certainty (Provisional/Confirmed).
+		// In legacy JSON payloads, "type" often means certainty (Provisional/Confirmed), not Primary/Secondary.
 		String jsonType = StringUtils.trimToEmpty(json.optString("type"));
 		
 		if (diagnosis.contains("::")) {
@@ -43,6 +50,10 @@ public class DiagnosisParser {
 		return parsed;
 	}
 	
+	/**
+	 * Parses {@code [code::]name[:Primary & Confirmed]}. {@code fallbackCategory} applies when
+	 * certainty is not present after {@code &} (e.g. from JSON {@code type}).
+	 */
 	private ParsedDiagnosis parseStructured(String structured, String fallbackCategory) {
 		ParsedDiagnosis parsed = new ParsedDiagnosis();
 		String text = StringUtils.trimToEmpty(structured);
@@ -62,6 +73,7 @@ public class DiagnosisParser {
 			diagnosisText = StringUtils.trimToEmpty(nameAndQual[0]);
 			String qualifiersPart = StringUtils.trimToEmpty(nameAndQual[1]);
 			if (!qualifiersPart.isEmpty()) {
+				// "Primary & Confirmed" → rank type, then verification category.
 				String[] qualifiers = qualifiersPart.split("\\s*&\\s*");
 				if (qualifiers.length > 0) {
 					diagnosisType = qualifiers[0];
@@ -87,6 +99,10 @@ public class DiagnosisParser {
 		return StringUtils.trimToNull(cleaned);
 	}
 	
+	/**
+	 * Only Primary and Secondary are kept; other rank labels are ignored (rank falls back to 3+
+	 * upstream).
+	 */
 	private static String normalizeType(String s) {
 		String v = StringUtils.trimToEmpty(s).toLowerCase();
 		if ("primary".equals(v)) {
@@ -98,6 +114,10 @@ public class DiagnosisParser {
 		return null;
 	}
 	
+	/**
+	 * Maps UI certainty labels to FHIR condition-ver-status codes used by
+	 * {@link org.openmrs.module.ihshr.fhir.DiagnosisConditionBuilder}.
+	 */
 	private static String normalizeCategory(String s) {
 		String v = StringUtils.trimToEmpty(s).toLowerCase();
 		if ("provisional".equals(v)) {

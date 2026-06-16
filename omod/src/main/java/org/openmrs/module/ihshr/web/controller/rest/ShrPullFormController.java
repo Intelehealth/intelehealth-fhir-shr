@@ -18,27 +18,22 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * Doctor portal SHR pull API (doc §4 / §9).
- * <p>
- * <b>Base URL:</b> {@code openmrsBase}/ws/rest/v1/ihshr/shr/... (same pattern as ihmodule
- * {@code ConfigFacilityRestController}). Legacy servlet paths {@code module/ihshr/*.form} are also
- * mapped (same pattern as {@code PatientExchangeProxyRestController}).
+ * Legacy {@code module/ihshr/*.form} servlet paths for SHR pull. REST clients should prefer
+ * {@link ShrPullController} at {@code /ws/rest/v1/ihshr/shr/...}.
  */
 @Controller
-@RequestMapping("/rest/v1/ihshr/shr")
-public class ShrPullController {
+public class ShrPullFormController {
 	
-	@RequestMapping(value = "/patients/{openmrsPatientUuid}/resolve", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> resolvePatient(@PathVariable("openmrsPatientUuid") String openmrsPatientUuid) {
+	@RequestMapping(value = "module/ihshr/shrPatientResolve.form", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<?> resolvePatient(@RequestParam("openmrsPatientUuid") String openmrsPatientUuid) {
 		try {
 			ShrPullAuthSupport.requirePullAccess();
-			Object body = getService().resolvePatient(openmrsPatientUuid);
+			Object body = getService().resolvePatient(openmrsPatientUuid.trim());
 			return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
 		}
 		catch (ShrPullException ex) {
@@ -50,13 +45,13 @@ public class ShrPullController {
 		}
 	}
 	
-	@RequestMapping(value = "/history/{openmrsPatientUuid}", method = RequestMethod.GET)
-	public ResponseEntity<?> getHistory(@PathVariable("openmrsPatientUuid") String openmrsPatientUuid,
-	        @RequestParam Map<String, String> queryParams) {
+	@RequestMapping(value = "module/ihshr/shrHistory.form", method = RequestMethod.GET)
+	public ResponseEntity<?> getHistory(@RequestParam Map<String, String> queryParams) {
 		try {
 			ShrPullAuthSupport.requirePullAccess();
 			ShrHistoryRequest request = ShrHistoryRequest.fromQueryParams(queryParams);
-			ShrPullResult result = getService().getHistory(openmrsPatientUuid, request);
+			ShrPullResult result = getService().getHistory(requirePatientUuid(queryParams.get("openmrsPatientUuid")),
+			    request);
 			return formatResponse(result);
 		}
 		catch (ShrPullException ex) {
@@ -68,15 +63,15 @@ public class ShrPullController {
 		}
 	}
 	
-	@RequestMapping(value = "/history/{openmrsPatientUuid}/page", method = RequestMethod.GET)
-	public ResponseEntity<?> getPage(@PathVariable("openmrsPatientUuid") String openmrsPatientUuid,
-	        @RequestParam Map<String, String> queryParams) {
+	@RequestMapping(value = "module/ihshr/shrHistoryPage.form", method = RequestMethod.GET)
+	public ResponseEntity<?> getPage(@RequestParam Map<String, String> queryParams) {
 		try {
 			ShrPullAuthSupport.requirePullAccess();
 			String pageUrl = queryParams.get("url");
 			String format = StringUtils.defaultIfBlank(queryParams.get("format"), "envelope");
 			boolean includeLocalEcho = Boolean.parseBoolean(StringUtils.defaultString(queryParams.get("includeLocalEcho")));
-			ShrPullResult result = getService().getPage(openmrsPatientUuid, pageUrl, format, includeLocalEcho);
+			ShrPullResult result = getService().getPage(requirePatientUuid(queryParams.get("openmrsPatientUuid")), pageUrl,
+			    format, includeLocalEcho);
 			return formatResponse(result);
 		}
 		catch (ShrPullException ex) {
@@ -88,16 +83,16 @@ public class ShrPullController {
 		}
 	}
 	
-	@RequestMapping(value = "/history/{openmrsPatientUuid}/refresh", method = RequestMethod.GET)
-	public ResponseEntity<?> refresh(@PathVariable("openmrsPatientUuid") String openmrsPatientUuid,
-	        @RequestParam Map<String, String> queryParams) {
+	@RequestMapping(value = "module/ihshr/shrHistoryRefresh.form", method = RequestMethod.GET)
+	public ResponseEntity<?> refresh(@RequestParam Map<String, String> queryParams) {
 		try {
 			ShrPullAuthSupport.requirePullAccess();
 			String since = queryParams.get("since");
 			int count = parseCount(queryParams.get("count"), 50);
 			boolean includeLocalEcho = Boolean.parseBoolean(StringUtils.defaultString(queryParams.get("includeLocalEcho")));
 			String format = StringUtils.defaultIfBlank(queryParams.get("format"), "envelope");
-			ShrPullResult result = getService().refresh(openmrsPatientUuid, since, count, includeLocalEcho, format);
+			ShrPullResult result = getService().refresh(requirePatientUuid(queryParams.get("openmrsPatientUuid")), since,
+			    count, includeLocalEcho, format);
 			return formatResponse(result);
 		}
 		catch (ShrPullException ex) {
@@ -109,18 +104,20 @@ public class ShrPullController {
 		}
 	}
 	
-	@RequestMapping(value = "/search/{openmrsPatientUuid}/{resourceType}", method = RequestMethod.GET)
-	public ResponseEntity<?> search(@PathVariable("openmrsPatientUuid") String openmrsPatientUuid,
-	        @PathVariable("resourceType") String resourceType, @RequestParam Map<String, String> queryParams) {
+	@RequestMapping(value = "module/ihshr/shrSearch.form", method = RequestMethod.GET)
+	public ResponseEntity<?> search(@RequestParam Map<String, String> queryParams) {
 		try {
 			ShrPullAuthSupport.requirePullAccess();
+			String resourceType = requireResourceType(queryParams.get("resourceType"));
 			String format = StringUtils.defaultIfBlank(queryParams.get("format"), "envelope");
 			boolean includeLocalEcho = Boolean.parseBoolean(StringUtils.defaultString(queryParams.get("includeLocalEcho")));
 			Map<String, String> extra = new HashMap<String, String>(queryParams);
 			extra.remove("format");
 			extra.remove("includeLocalEcho");
-			ShrPullResult result = getService().searchResource(openmrsPatientUuid, resourceType, extra, includeLocalEcho,
-			    format);
+			extra.remove("openmrsPatientUuid");
+			extra.remove("resourceType");
+			ShrPullResult result = getService().searchResource(requirePatientUuid(queryParams.get("openmrsPatientUuid")),
+			    resourceType, extra, includeLocalEcho, format);
 			return formatResponse(result);
 		}
 		catch (ShrPullException ex) {
@@ -132,11 +129,11 @@ public class ShrPullController {
 		}
 	}
 	
-	@RequestMapping(value = "/binary/{binaryId}", method = RequestMethod.GET)
-	public ResponseEntity<byte[]> streamBinary(@PathVariable("binaryId") String binaryId) {
+	@RequestMapping(value = "module/ihshr/shrBinaryStream.form", method = RequestMethod.GET)
+	public ResponseEntity<byte[]> streamBinary(@RequestParam("binaryId") String binaryId) {
 		try {
 			ShrPullAuthSupport.requirePullAccess();
-			ShrBinaryContent content = getService().readBinaryBytes(binaryId);
+			ShrBinaryContent content = getService().readBinaryBytes(binaryId.trim());
 			MediaType mediaType = MediaType.parseMediaType(StringUtils.defaultIfBlank(content.getContentType(),
 			    MediaType.APPLICATION_OCTET_STREAM_VALUE));
 			return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(mediaType).body(content.getData());
@@ -150,11 +147,11 @@ public class ShrPullController {
 		}
 	}
 	
-	@RequestMapping(value = "/content/Binary/{binaryId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> readBinaryJson(@PathVariable("binaryId") String binaryId) {
+	@RequestMapping(value = "module/ihshr/shrBinaryJson.form", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<?> readBinaryJson(@RequestParam("binaryId") String binaryId) {
 		try {
 			ShrPullAuthSupport.requirePullAccess();
-			Object body = getService().readBinaryContent(binaryId);
+			Object body = getService().readBinaryContent(binaryId.trim());
 			return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
 		}
 		catch (ShrPullException ex) {
@@ -164,6 +161,20 @@ public class ShrPullController {
 			e.printStackTrace();
 			return new ResponseEntity<Object>("Request failed", HttpStatus.INTERNAL_SERVER_ERROR);
 		}
+	}
+	
+	private static String requirePatientUuid(String uuid) {
+		if (StringUtils.isBlank(uuid)) {
+			throw new ShrPullException(ShrPullErrorCode.INVALID_FILTER, "openmrsPatientUuid is required");
+		}
+		return uuid.trim();
+	}
+	
+	private static String requireResourceType(String resourceType) {
+		if (StringUtils.isBlank(resourceType)) {
+			throw new ShrPullException(ShrPullErrorCode.INVALID_FILTER, "resourceType is required");
+		}
+		return resourceType.trim();
 	}
 	
 	private static int parseCount(String value, int defaultValue) {

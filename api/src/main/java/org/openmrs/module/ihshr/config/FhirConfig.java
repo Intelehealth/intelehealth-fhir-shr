@@ -5,8 +5,8 @@ import org.openmrs.module.ihmodule.api.patientexchange.config.FhirContextHolder;
 import org.hl7.fhir.r4.model.Binary;
 import org.hl7.fhir.r4.model.Bundle;
 import org.openmrs.module.ihshr.domain.FhirResponse;
+import org.openmrs.module.ihshr.fhir.ShrPushMetaApplicator;
 import org.openmrs.module.ihshr.utils.IHConstant;
-import org.openmrs.module.ihshr.utils.IhshrPropertyResolver;
 import org.springframework.stereotype.Component;
 
 import ca.uhn.fhir.parser.IParser;
@@ -19,12 +19,7 @@ import ca.uhn.fhir.rest.server.exceptions.BaseServerResponseException;
 public class FhirConfig extends IHConstant {
 	
 	public IGenericClient getOpenCRFhirContext() {
-		String resolvedOpencrUrl = getOpencrOpenhimURL();
-		IGenericClient openCr = FhirContextHolder.R4.newRestfulGenericClient(resolvedOpencrUrl);
-		String[] credentials = splitCredentials(getOpencrOpenhimAuthentication(),
-		    "opencr.openhim.clientid.password.basic.auth");
-		openCr.registerInterceptor(new BasicAuthInterceptor(credentials[0], credentials[1]));
-		return openCr;
+		return getShrFhirContext();
 	}
 	
 	public IGenericClient getLocalOpenMRSFhirContext() {
@@ -62,6 +57,7 @@ public class FhirConfig extends IHConstant {
 	public FhirResponse postTransactionBundle(Bundle transactionBundle) {
 		FhirResponse response = new FhirResponse();
 		try {
+			ShrPushMetaApplicator.applyPushMeta(transactionBundle);
 			Bundle result = getShrFhirContext().transaction().withBundle(transactionBundle).execute();
 			response.setStatusCode("200");
 			response.setResponse(newJsonParser().setPrettyPrint(true).encodeResourceToString(result));
@@ -94,22 +90,10 @@ public class FhirConfig extends IHConstant {
 	}
 	
 	public Bundle searchBundleByUrl(String urlWithQuery) {
-		return getShrPullFhirContext().search().byUrl(urlWithQuery).returnBundle(Bundle.class).execute();
+		return getShrFhirContext().search().byUrl(urlWithQuery).returnBundle(Bundle.class).execute();
 	}
 	
 	public Binary readBinary(String binaryId) {
-		return getShrPullFhirContext().read().resource(Binary.class).withId(binaryId).execute();
-	}
-	
-	public IGenericClient getShrPullFhirContext() {
-		String pullUrl = IhshrPropertyResolver.resolve("shr.pull.openhim.url");
-		if (StringUtils.isNotBlank(pullUrl)) {
-			IGenericClient client = FhirContextHolder.R4.newRestfulGenericClient(pullUrl);
-			String[] credentials = splitCredentials(getOpencrOpenhimAuthentication(),
-			    "opencr.openhim.clientid.password.basic.auth");
-			client.registerInterceptor(new BasicAuthInterceptor(credentials[0], credentials[1]));
-			return client;
-		}
-		return getOpenCRFhirContext();
+		return getShrFhirContext().read().resource(Binary.class).withId(binaryId).execute();
 	}
 }

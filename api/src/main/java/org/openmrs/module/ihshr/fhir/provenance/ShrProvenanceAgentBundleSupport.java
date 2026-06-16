@@ -10,6 +10,7 @@ import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Practitioner;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.Resource;
+import org.openmrs.module.ihshr.fhir.ShrPushMetaApplicator;
 
 /**
  * Ensures SHR-side {@link Organization}, {@link Device}, and {@link Practitioner} resources
@@ -97,6 +98,7 @@ public final class ShrProvenanceAgentBundleSupport {
 		}
 		Bundle.BundleEntryComponent entry = new Bundle.BundleEntryComponent();
 		entry.setResource(resource);
+		ShrPushMetaApplicator.applyPushMeta(resource);
 		entry.getRequest().setMethod(Bundle.HTTPVerb.PUT).setUrl(putUrl);
 		int insertAt = 0;
 		while (insertAt < transactionBundle.getEntry().size()) {

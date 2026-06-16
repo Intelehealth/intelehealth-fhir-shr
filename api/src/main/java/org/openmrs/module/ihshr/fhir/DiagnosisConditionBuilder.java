@@ -15,6 +15,11 @@ import org.openmrs.module.ihshr.config.ClinicalTermCodingResolver;
 import org.openmrs.module.ihshr.domain.ParsedDiagnosis;
 import org.openmrs.module.ihshr.utils.DiagnosisConstants;
 
+/**
+ * Maps a {@link ParsedDiagnosis} (from obs {@code value_text}) onto a FHIR R4 {@link Condition} for
+ * SHR push. Used by {@link DiagnosisTransfer}; the resulting Condition is PUT separately and
+ * referenced from {@code Encounter.diagnosis[]}.
+ */
 public class DiagnosisConditionBuilder {
 	
 	public Condition build(Observation sourceObs, String obsUuid, ParsedDiagnosis parsedDiagnosis) {
@@ -36,6 +41,7 @@ public class DiagnosisConditionBuilder {
 		    DiagnosisConstants.CONDITION_CATEGORY_CODE));
 		condition.addCategory(category);
 		
+		// Certainty from value_text tail (e.g. "Confirmed") or JSON "type"; defaults to unconfirmed.
 		String verificationCode = StringUtils.defaultIfBlank(parsedDiagnosis.getDiagnosisCategory(), "unconfirmed");
 		condition.setVerificationStatus(new CodeableConcept().addCoding(new Coding().setSystem(
 		    DiagnosisConstants.VERIFICATION_STATUS_SYSTEM).setCode(verificationCode)));
@@ -46,9 +52,11 @@ public class DiagnosisConditionBuilder {
 		CodeableConcept code = new CodeableConcept();
 		code.setText(parsedDiagnosis.getDiagnosisText());
 		if (StringUtils.isNotBlank(parsedDiagnosis.getCode())) {
+			// Structured value_text includes an explicit code before "::".
 			code.addCoding(new Coding().setSystem(detectCodeSystem(parsedDiagnosis.getCode()))
 			        .setCode(parsedDiagnosis.getCode()).setDisplay(parsedDiagnosis.getDiagnosisText()));
 		} else {
+			// Layer 1: OpenMRS concept_name + concept_reference_map when no inline code is present.
 			org.hl7.fhir.r4.model.Coding dictionaryCoding = ClinicalTermCodingResolver.lookupMapping(
 			    parsedDiagnosis.getDiagnosisText(), null);
 			if (dictionaryCoding != null) {
@@ -78,6 +86,10 @@ public class DiagnosisConditionBuilder {
 		return condition;
 	}
 	
+	/**
+	 * Chooses a code system from the inline code shape: long numeric → SNOMED, ICD-10 pattern →
+	 * ICD-10, else IH native.
+	 */
 	public static String detectCodeSystem(String code) {
 		String c = StringUtils.trimToEmpty(code);
 		if (c.matches("\\d{6,}")) {
@@ -89,6 +101,10 @@ public class DiagnosisConditionBuilder {
 		return DiagnosisConstants.IH_NATIVE_CODE_SYSTEM;
 	}
 	
+	/**
+	 * Asserter priority: obs performer, then child encounter participant, then parent visit
+	 * encounter participant.
+	 */
 	static Reference resolveAsserter(Observation sourceObs, Encounter sourceEncounter, Encounter parentEncounter) {
 		if (sourceObs != null && sourceObs.hasPerformer()) {
 			return sourceObs.getPerformerFirstRep().copy();

@@ -91,11 +91,21 @@ public class ChiefComplaintParser {
 		}
 	}
 	
+	/**
+	 * Parses the {@code ►<b>Associated symptoms</b>} section into positive ({@code Patient reports}
+	 * ) and negative ({@code Patient denies}) symptom token lists for
+	 * {@link ChiefComplaintAssociatedSymptomBuilder}.
+	 * <p>
+	 * Tries inline prose first (split on markers, comma/bullet tokenize); if that yields nothing,
+	 * falls back to per-bullet parsing where a marker line starts a bucket and following bullets
+	 * append to it.
+	 */
 	private ParsedAssociatedSymptoms parseAssociatedBlock(String body) {
 		List<String> reports = new ArrayList<String>();
 		List<String> denies = new ArrayList<String>();
 		
 		String normalized = body.replaceAll("<br\\s*/?>", "\n").replaceAll("<[^>]+>", " ");
+		// Split prose at "patient denies"; everything before is the reports region.
 		int deniesIndex = indexOfIgnoreCase(normalized, "patient denies");
 		String reportsPart = deniesIndex >= 0 ? normalized.substring(0, deniesIndex) : normalized;
 		String deniesPart = deniesIndex >= 0 ? normalized.substring(deniesIndex) : "";
@@ -110,6 +120,7 @@ public class ChiefComplaintParser {
 		addSymptomTokens(reports, reportsPart);
 		addSymptomTokens(denies, deniesPart);
 		
+		// Fallback: UI often emits one bullet per line with markers on the first bullet only.
 		if (reports.isEmpty() && denies.isEmpty()) {
 			List<String> currentBucket = null;
 			for (String bullet : extractBullets(body)) {

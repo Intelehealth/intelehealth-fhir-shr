@@ -56,11 +56,11 @@ public abstract class IHConstant {
 	}
 	
 	protected String getOpencrOpenhimURL() {
-		return IhshrPropertyResolver.resolve("opencr.openhim.url");
+		return getShrUrl();
 	}
 	
 	protected String getOpencrOpenhimAuthentication() {
-		return IhshrPropertyResolver.resolve("opencr.openhim.clientid.password.basic.auth");
+		return getShrCredential();
 	}
 	
 	protected String getGofrOpenhimURL() {
@@ -72,7 +72,7 @@ public abstract class IHConstant {
 	}
 	
 	protected String getShrUrl() {
-		return IhshrPropertyResolver.resolve("opencr.shr.url");
+		return ShrFhirUrlSupport.resolveShrFhirBaseUrl();
 	}
 	
 	protected String getShrCredential() {

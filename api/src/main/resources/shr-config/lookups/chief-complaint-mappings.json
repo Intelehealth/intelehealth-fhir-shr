@@ -50,6 +50,10 @@
     "dizziness": {
       "code": "404640003",
       "display": "Dizziness (finding)"
+    },
+    "anorexia": {
+      "code": "79890006",
+      "display": "Loss of appetite (finding)"
     }
   }
 }
