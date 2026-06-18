@@ -65,7 +65,7 @@ public class ShrPullService {
 	
 	public ShrPullResult getPage(String openmrsPatientUuid, String pageUrl, String format, boolean includeLocalEcho) {
 		ShrHistoryRequest request = new ShrHistoryRequest();
-		request.setFormat(format);
+		request.setFormat(ShrPullFormat.parse(format).getParamValue());
 		request.setIncludeLocalEcho(ShrPullAccessControl.resolveIncludeLocalEcho(includeLocalEcho));
 		ShrResolvedPatient patient = patientResolver.resolve(openmrsPatientUuid);
 		fhirPullClient.assertAllowedPageUrl(pageUrl);
@@ -222,7 +222,7 @@ public class ShrPullService {
 	
 	private static ShrHistoryRequest buildRefreshRequest(String format, int count, boolean includeLocalEcho) {
 		ShrHistoryRequest request = new ShrHistoryRequest();
-		request.setFormat(format);
+		request.setFormat(ShrPullFormat.parse(format).getParamValue());
 		request.setCount(count);
 		request.setIncludeLocalEcho(includeLocalEcho);
 		return request;
@@ -230,7 +230,7 @@ public class ShrPullService {
 	
 	private static ShrHistoryRequest buildSearchRequest(String format, boolean includeLocalEcho) {
 		ShrHistoryRequest request = new ShrHistoryRequest();
-		request.setFormat(format);
+		request.setFormat(ShrPullFormat.parse(format).getParamValue());
 		request.setIncludeLocalEcho(includeLocalEcho);
 		return request;
 	}

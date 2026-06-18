@@ -138,14 +138,12 @@ public class ShrPullPayloadTest {
 	}
 	
 	private ShrPullResult buildCustomMergedResult(List<ShrFhirQuery> queries) {
-		Bundle encounterBundle = bundleWith(sampleEncounterFromOtherFacility());
-		Bundle conditionBundle = bundleWith(sampleConditionFromOtherFacility());
+		Bundle encounterBundle = bundleWith(sampleEncounterFromOtherFacility(), sampleConditionFromOtherFacility());
 		
 		List<ShrBundleMerger.ExecutedQuery> executed = new ArrayList<ShrBundleMerger.ExecutedQuery>();
 		executed.add(new ShrBundleMerger.ExecutedQuery(queries.get(0), encounterBundle));
-		executed.add(new ShrBundleMerger.ExecutedQuery(queries.get(1), conditionBundle));
 		
-		Bundle merged = ShrBundleMerger.merge(Arrays.asList(encounterBundle, conditionBundle));
+		Bundle merged = ShrBundleMerger.merge(Arrays.asList(encounterBundle));
 		merged.setTotal(2);
 		
 		ShrPullResult result = new ShrPullResult();

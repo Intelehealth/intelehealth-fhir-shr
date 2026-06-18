@@ -85,8 +85,20 @@ public final class ShrQueryTranslator {
 	}
 	
 	private static List<ShrFhirQuery> buildCustomQueries(String cruid, ShrHistoryRequest request) {
+		List<ShrPullRecordType> types = ShrRecordTypeSelection.resolved(request);
 		List<ShrFhirQuery> queries = new ArrayList<ShrFhirQuery>();
-		for (ShrPullRecordType type : request.getRecordTypes()) {
+		boolean encounterQueryAdded = false;
+		if (types.contains(ShrPullRecordType.ENCOUNTER)) {
+			queries.add(new ShrFhirQuery("custom-encounter", "Encounter", buildCustomEncounterUrl(cruid, request)));
+			encounterQueryAdded = true;
+		}
+		for (ShrPullRecordType type : types) {
+			if (type == ShrPullRecordType.ENCOUNTER) {
+				continue;
+			}
+			if (encounterQueryAdded && ShrRecordTypeSelection.isEncounterBundled(type)) {
+				continue;
+			}
 			queries.add(new ShrFhirQuery("custom-" + type.name().toLowerCase(), type.getFhirType(), buildCustomTypeUrl(type,
 			    cruid, request)));
 		}
@@ -215,7 +227,7 @@ public final class ShrQueryTranslator {
 	private static String buildCustomTypeUrl(ShrPullRecordType type, String cruid, ShrHistoryRequest request) {
 		switch (type) {
 			case ENCOUNTER:
-				return buildFilteredEncounterUrl(cruid, request);
+				return buildCustomEncounterUrl(cruid, request);
 			case CONDITION:
 				return buildFilteredConditionUrl(cruid, request);
 			case OBSERVATION:
@@ -233,14 +245,47 @@ public final class ShrQueryTranslator {
 		}
 	}
 	
-	private static String buildFilteredEncounterUrl(String cruid, ShrHistoryRequest request) {
+	private static String buildCustomEncounterUrl(String cruid, ShrHistoryRequest request) {
+		List<ShrPullRecordType> types = ShrRecordTypeSelection.resolved(request);
 		ShrPullUrlBuilder builder = baseSubjectBuilder("Encounter", cruid, request);
 		applyDateRange(builder, "date", request);
 		builder.param("_sort", request.isDescendingSort() ? "-date" : "date");
 		applyConditionCode(builder, "reason-code", request);
+		if (isTimelineRequest(request)) {
+			builder.param("class", "AMB");
+		}
 		builder.param("_include", "Encounter:participant");
-		builder.param("_revinclude", "Observation:encounter");
+		builder.param("_include", "Encounter:location");
+		if (types.contains(ShrPullRecordType.CONDITION)) {
+			builder.param("_include", "Encounter:diagnosis");
+		}
+		addEncounterRevincludes(builder, types);
 		return builder.build("Encounter");
+	}
+	
+	private static void addEncounterRevincludes(ShrPullUrlBuilder builder, List<ShrPullRecordType> types) {
+		if (types.contains(ShrPullRecordType.OBSERVATION)) {
+			builder.param("_revinclude", "Observation:encounter");
+		}
+		if (types.contains(ShrPullRecordType.CONDITION)) {
+			builder.param("_revinclude", "Condition:encounter");
+		}
+		if (types.contains(ShrPullRecordType.MEDICATION_REQUEST)) {
+			builder.param("_revinclude", "MedicationRequest:encounter");
+		}
+		if (types.contains(ShrPullRecordType.SERVICE_REQUEST)) {
+			builder.param("_revinclude", "ServiceRequest:encounter");
+		}
+		if (types.contains(ShrPullRecordType.DOCUMENT_REFERENCE)) {
+			builder.param("_revinclude", "DocumentReference:encounter");
+		}
+		if (types.contains(ShrPullRecordType.PROVENANCE)) {
+			builder.param("_revinclude", "Provenance:target");
+		}
+	}
+	
+	private static String buildFilteredEncounterUrl(String cruid, ShrHistoryRequest request) {
+		return buildCustomEncounterUrl(cruid, request);
 	}
 	
 	private static String buildFilteredConditionUrl(String cruid, ShrHistoryRequest request) {
@@ -308,6 +353,10 @@ public final class ShrQueryTranslator {
 			return;
 		}
 		builder.param("subject.identifier", token);
+	}
+	
+	private static boolean isTimelineRequest(ShrHistoryRequest request) {
+		return request != null && ShrPullFormat.TIMELINE.getParamValue().equals(request.getFormat());
 	}
 	
 	private static void applyNoEcho(ShrPullUrlBuilder builder, boolean includeLocalEcho) {

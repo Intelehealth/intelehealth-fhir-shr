@@ -12,6 +12,7 @@ import org.openmrs.module.ihshr.pull.ShrPullAuthSupport;
 import org.openmrs.module.ihshr.pull.ShrPullErrorCode;
 import org.openmrs.module.ihshr.pull.ShrPullException;
 import org.openmrs.module.ihshr.pull.ShrPullResult;
+import org.openmrs.module.ihshr.pull.ShrPullResponseSupport;
 import org.openmrs.module.ihshr.pull.ShrPullService;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -179,13 +180,7 @@ public class ShrPullController {
 	}
 	
 	private ResponseEntity<?> formatResponse(ShrPullResult result) {
-		String format = result.getRequest() != null ? result.getRequest().getFormat() : "envelope";
-		if ("fhir".equalsIgnoreCase(format) || "fhir-merged".equalsIgnoreCase(format)) {
-			String body = getService().encodeBundle(result.getMerged());
-			return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-			        .contentType(MediaType.parseMediaType("application/fhir+json")).body(body);
-		}
-		return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(getService().toEnvelope(result));
+		return ShrPullResponseSupport.toResponse(result, getService());
 	}
 	
 	private ResponseEntity<?> errorResponse(ShrPullException ex) {

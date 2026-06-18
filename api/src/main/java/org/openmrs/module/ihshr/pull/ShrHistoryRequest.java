@@ -95,7 +95,7 @@ public class ShrHistoryRequest {
 			req.includeLocalEcho = Boolean.parseBoolean(params.get("includeLocalEcho").trim());
 		}
 		if (StringUtils.isNotBlank(params.get("format"))) {
-			req.format = params.get("format").trim();
+			req.format = ShrPullFormat.parse(params.get("format")).getParamValue();
 		}
 		req.applyDefaults();
 		return req;

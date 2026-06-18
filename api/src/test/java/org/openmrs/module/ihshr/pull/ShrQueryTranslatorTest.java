@@ -32,22 +32,60 @@ public class ShrQueryTranslatorTest {
 		assertEquals(1, queries.size());
 		String url = queries.get(0).getUrl();
 		assertTrue(url.contains("patient.identifier=urn%3Aintelehealth%3Acruid%7Cshr-patient-1"));
-		assertFalse(url.contains("_source%3Anot="));
+		if (ShrPullSettings.sourceFilterEnabled()) {
+			assertTrue(url.contains("_source%3Anot="));
+		} else {
+			assertFalse(url.contains("_source%3Anot="));
+		}
 		assertTrue(url.contains("_include=Encounter%3Aparticipant"));
 		assertTrue(url.contains("_revinclude=Observation%3Aencounter"));
 		assertTrue(url.contains("_revinclude=Provenance%3Atarget"));
 	}
 	
 	@Test
-	public void customMultiTypeBuildsOneQueryPerType() {
+	public void customEncounterTimelineOnlyRevincludesSelectedRecordTypes() {
+		java.util.Map<String, String> params = new java.util.HashMap<String, String>();
+		params.put("view", "custom");
+		params.put("format", "timeline");
+		params.put("recordTypes", "Encounter,Observation");
+		ShrHistoryRequest request = ShrHistoryRequest.fromQueryParams(params);
+		List<ShrFhirQuery> queries = ShrQueryTranslator.buildHistoryQueries("42", request);
+		assertEquals(1, queries.size());
+		String url = queries.get(0).getUrl();
+		assertTrue(url.contains("class=AMB"));
+		assertTrue(url.contains("_revinclude=Observation%3Aencounter"));
+		assertFalse(url.contains("_revinclude=MedicationRequest%3Aencounter"));
+		assertFalse(url.contains("_revinclude=Condition%3Aencounter"));
+	}
+	
+	@Test
+	public void customEncounterAndConditionUsesSingleEncounterQuery() {
 		java.util.Map<String, String> params = new java.util.HashMap<String, String>();
 		params.put("view", "custom");
 		params.put("recordTypes", "Encounter,Condition");
 		ShrHistoryRequest request = ShrHistoryRequest.fromQueryParams(params);
 		List<ShrFhirQuery> queries = ShrQueryTranslator.buildHistoryQueries("42", request);
+		assertEquals(1, queries.size());
+		assertEquals("Encounter", queries.get(0).getResourceType());
+		assertTrue(queries.get(0).getUrl().contains("_revinclude=Condition%3Aencounter"));
+	}
+	
+	@Test
+	public void customWithoutRecordTypesDefaultsToAllTypes() {
+		ShrHistoryRequest request = ShrHistoryRequest.fromQueryParams(java.util.Collections.singletonMap("view", "custom"));
+		assertEquals(ShrPullRecordType.defaultCustomTypes().size(), ShrRecordTypeSelection.resolved(request).size());
+	}
+	
+	@Test
+	public void customMultiTypeBuildsOneQueryPerNonBundledType() {
+		java.util.Map<String, String> params = new java.util.HashMap<String, String>();
+		params.put("view", "custom");
+		params.put("recordTypes", "Encounter,FamilyMemberHistory");
+		ShrHistoryRequest request = ShrHistoryRequest.fromQueryParams(params);
+		List<ShrFhirQuery> queries = ShrQueryTranslator.buildHistoryQueries("42", request);
 		assertEquals(2, queries.size());
 		assertEquals("Encounter", queries.get(0).getResourceType());
-		assertEquals("Condition", queries.get(1).getResourceType());
+		assertEquals("FamilyMemberHistory", queries.get(1).getResourceType());
 	}
 	
 	@Test
@@ -56,7 +94,11 @@ public class ShrQueryTranslatorTest {
 		assertTrue(query.getUrl().startsWith("Encounter?"));
 		assertTrue(query.getUrl().contains("patient.identifier=urn%3Aintelehealth%3Acruid%7C99"));
 		assertTrue(query.getUrl().contains("_lastUpdated=ge2026-01-01T00%3A00%3A00Z"));
-		assertFalse(query.getUrl().contains("_source%3Anot="));
+		if (ShrPullSettings.sourceFilterEnabled()) {
+			assertTrue(query.getUrl().contains("_source%3Anot="));
+		} else {
+			assertFalse(query.getUrl().contains("_source%3Anot="));
+		}
 	}
 	
 	@Test
