@@ -1,0 +1,310 @@
+{
+  "resourceType": "CapabilityStatement",
+  "id": "ih-shr-integration-requirements",
+  "url": "https://intelehealth.org/fhir/CapabilityStatement/ih-shr-integration-requirements",
+  "version": "1.0.0",
+  "name": "IHSHRIntegrationRequirements",
+  "title": "Intelehealth SHR Integration — Required Server Capabilities",
+  "status": "active",
+  "experimental": false,
+  "date": "2026-06-18",
+  "publisher": "Intelehealth",
+  "description": "Subset of FHIR R4 capabilities required by the ihshr OpenMRS module for SHR push (visit transaction bundles) and doctor pull (timeline/history). This is a conformance requirements artifact. The authoritative live server CapabilityStatement is exported from GET {shr-base}/metadata (see SHR-CapabilityStatement.json).",
+  "kind": "requirements",
+  "fhirVersion": "4.0.1",
+  "format": [
+    "application/fhir+json"
+  ],
+  "software": {
+    "name": "ihshr (Intelehealth SHR module)",
+    "version": "1.0.0-SNAPSHOT"
+  },
+  "implementation": {
+    "description": "Example verified SHR deployment",
+    "url": "http://192.168.19.154:8080/shr/fhir"
+  },
+  "rest": [
+    {
+      "mode": "server",
+      "documentation": "Minimum SHR server capabilities for ihshr push and pull.",
+      "security": {
+        "description": "Basic auth or channel auth per deployment (OpenHIM / HAPI)"
+      },
+      "interaction": [
+        {
+          "code": "transaction"
+        },
+        {
+          "code": "search-type"
+        },
+        {
+          "code": "read"
+        },
+        {
+          "code": "create"
+        },
+        {
+          "code": "update"
+        }
+      ],
+      "resource": [
+        {
+          "type": "Patient",
+          "interaction": [
+            {
+              "code": "search-type"
+            },
+            {
+              "code": "read"
+            },
+            {
+              "code": "create"
+            },
+            {
+              "code": "update"
+            }
+          ],
+          "searchParam": [
+            {
+              "name": "identifier",
+              "type": "token",
+              "documentation": "urn:intelehealth:cruid|{uuid}"
+            }
+          ],
+          "operation": [
+            {
+              "name": "everything",
+              "definition": "http://hl7.org/fhir/OperationDefinition/Patient-everything",
+              "documentation": "Refresh since last look with _since and _type"
+            }
+          ]
+        },
+        {
+          "type": "Encounter",
+          "searchParam": [
+            {
+              "name": "subject",
+              "type": "reference"
+            },
+            {
+              "name": "date",
+              "type": "date"
+            },
+            {
+              "name": "class",
+              "type": "token"
+            },
+            {
+              "name": "participant",
+              "type": "reference"
+            }
+          ],
+          "documentation": "Default timeline anchor; class=AMB for outpatient cards"
+        },
+        {
+          "type": "Observation",
+          "searchParam": [
+            {
+              "name": "subject",
+              "type": "reference"
+            },
+            {
+              "name": "code",
+              "type": "token"
+            },
+            {
+              "name": "category",
+              "type": "token"
+            },
+            {
+              "name": "date",
+              "type": "date"
+            }
+          ]
+        },
+        {
+          "type": "Condition",
+          "searchParam": [
+            {
+              "name": "subject",
+              "type": "reference"
+            },
+            {
+              "name": "code",
+              "type": "token"
+            },
+            {
+              "name": "category",
+              "type": "token"
+            },
+            {
+              "name": "clinical-status",
+              "type": "token"
+            }
+          ]
+        },
+        {
+          "type": "MedicationRequest",
+          "searchParam": [
+            {
+              "name": "subject",
+              "type": "reference"
+            },
+            {
+              "name": "status",
+              "type": "token"
+            }
+          ]
+        },
+        {
+          "type": "ServiceRequest",
+          "searchParam": [
+            {
+              "name": "subject",
+              "type": "reference"
+            },
+            {
+              "name": "intent",
+              "type": "token"
+            }
+          ]
+        },
+        {
+          "type": "FamilyMemberHistory",
+          "searchParam": [
+            {
+              "name": "patient",
+              "type": "reference"
+            }
+          ]
+        },
+        {
+          "type": "DocumentReference",
+          "searchParam": [
+            {
+              "name": "subject",
+              "type": "reference"
+            },
+            {
+              "name": "status",
+              "type": "token"
+            },
+            {
+              "name": "date",
+              "type": "date"
+            }
+          ]
+        },
+        {
+          "type": "Binary",
+          "interaction": [
+            {
+              "code": "read"
+            }
+          ]
+        },
+        {
+          "type": "Provenance",
+          "interaction": [
+            {
+              "code": "search-type"
+            },
+            {
+              "code": "create"
+            }
+          ]
+        },
+        {
+          "type": "Practitioner",
+          "documentation": "_include Encounter:participant"
+        },
+        {
+          "type": "Location",
+          "documentation": "Push + _include Encounter:location"
+        },
+        {
+          "type": "Organization",
+          "documentation": "Provenance custodian bootstrap"
+        },
+        {
+          "type": "Device",
+          "documentation": "Provenance transmitter bootstrap"
+        },
+        {
+          "type": "Medication",
+          "documentation": "Referenced by MedicationRequest in push bundles"
+        },
+        {
+          "type": "AllergyIntolerance",
+          "documentation": "Medical history push"
+        },
+        {
+          "type": "MedicationStatement",
+          "documentation": "Medical history push"
+        }
+      ],
+      "searchParam": [
+        {
+          "name": "_count",
+          "type": "number"
+        },
+        {
+          "name": "_sort",
+          "type": "string"
+        },
+        {
+          "name": "_include",
+          "type": "string"
+        },
+        {
+          "name": "_revinclude",
+          "type": "string"
+        },
+        {
+          "name": "_lastUpdated",
+          "type": "date"
+        },
+        {
+          "name": "_format",
+          "type": "string"
+        },
+        {
+          "name": "_source",
+          "type": "uri",
+          "documentation": "Optional no-echo filter; often disabled when meta.source not persisted"
+        },
+        {
+          "name": "_tag",
+          "type": "token"
+        }
+      ]
+    }
+  ],
+  "ihshrPullViews": [
+    "default",
+    "problems",
+    "medications",
+    "vitals",
+    "labs",
+    "family-history",
+    "referrals",
+    "follow-up",
+    "documents",
+    "custom"
+  ],
+  "ihshrRecordTypes": [
+    "Encounter",
+    "Condition",
+    "Observation",
+    "MedicationRequest",
+    "ServiceRequest",
+    "DocumentReference",
+    "FamilyMemberHistory",
+    "Provenance"
+  ],
+  "relatedDocumentation": [
+    "docs/CAPABILITY_STATEMENT.md",
+    "docs/CAPABILITY_STATEMENT.docx",
+    "docs/SHR-CapabilityStatement.json"
+  ]
+}
