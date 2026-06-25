@@ -39,11 +39,11 @@ import org.openmrs.module.ihmodule.api.patientexchange.domain.CompeletdVisit;
 import org.openmrs.module.ihshr.domain.CompletedRecord;
 import org.openmrs.module.ihshr.domain.FhirResponse;
 import org.openmrs.module.ihshr.domain.ParsedExamCategory;
-import org.openmrs.module.ihshr.domain.ParsedFinding;
 import org.openmrs.module.ihshr.fhir.ChiefComplaintBuildResult;
 import org.openmrs.module.ihshr.fhir.ChiefComplaintTransfer;
 import org.openmrs.module.ihshr.fhir.DiagnosisBuildResult;
 import org.openmrs.module.ihshr.fhir.DiagnosisTransfer;
+import org.openmrs.module.ihshr.fhir.EncounterLocationSupport;
 import org.openmrs.module.ihshr.fhir.EncounterPractitionerSupport;
 import org.openmrs.module.ihshr.fhir.FamilyHistoryBuildResult;
 import org.openmrs.module.ihshr.fhir.FamilyHistoryTransfer;
@@ -413,7 +413,8 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 		catch (IllegalStateException ex) {
 			System.err.println("[VisitPush] " + operationLabel + " for visit " + pushRow.getVisitUuid() + " failed: "
 			        + ex.getMessage());
-			return false;
+			shrSyncLogService.markFailed(pushRow, null, ex.getMessage(), false);
+			return true;
 		}
 		catch (Exception ex) {
 			System.err.println("[VisitPush] " + operationLabel + " failed for sync log id=" + pushRow.getId() + ": "
@@ -429,6 +430,16 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 		pushSingleVisit(theVisit, null);
 	}
 	
+	/**
+	 * Builds one visit-scoped FHIR transaction bundle and enqueues or replays SHR push via sync
+	 * log.
+	 * <p>
+	 * Entry points: {@link #syncHealthRecordsByEncounterId} (visit-complete event / manual),
+	 * {@link #pushVisitForSyncLog} (retry from {@code intelehealth_shr_sync_log}). When
+	 * {@code existingSyncLog} is null, {@link #enqueueVisitBundlePush} creates a PENDING row then
+	 * posts if {@code fhir_module.shr} is enabled; otherwise
+	 * {@link #pushRegeneratedBundleForSyncLog} refreshes the stored bundle on replay.
+	 */
 	private void pushSingleVisit(CompeletdVisit theVisit, IntelehealthShrSyncLog existingSyncLog) throws ParseException,
 	        UnsupportedEncodingException, DataFormatException {
 		String visitUuid = theVisit.getVisit();
@@ -437,6 +448,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 		    addedCruids, subject, logPrefix);
 		VisitTransactionBundleBuilder builder = new VisitTransactionBundleBuilder(visitUuid, cruidSupport);
 		
+		// Parent visit Encounter + visit-complete child; then all clinical child encounters for this visit.
 		String visitCompleteEncounterUuid = pushContext.getTriggerEncounterUuid();
 		ensureVisitParentEncounterInBuilder(builder, visitUuid, visitCompleteEncounterUuid);
 		if (visitCompleteEncounterUuid != null) {
@@ -450,6 +462,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			addEncounterResourceToVisitBuilder(builder, enc.getUuid(), false);
 		}
 		resolveEncounterPartOfReferences(builder);
+		includeAllEncounterReferencedResources(builder);
 		
 		if (!encounterIds.isEmpty()) {
 			populateVisitObservations(builder, encounterIds, visitUuid);
@@ -549,6 +562,49 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 		included = builder.getIncludedEncounterIds();
 		for (Encounter encounter : builder.getEncounterResources()) {
 			EncounterPartOfSupport.stripUnresolvedPartOf(encounter, included);
+		}
+	}
+	
+	private void includeAllEncounterReferencedResources(VisitTransactionBundleBuilder builder) throws ParseException,
+	        UnsupportedEncodingException, DataFormatException {
+		for (Encounter encounter : builder.getEncounterResources()) {
+			includeReferencedEncounterResources(builder, encounter);
+		}
+	}
+	
+	private void includeReferencedEncounterResources(VisitTransactionBundleBuilder builder, Encounter encounter)
+	        throws ParseException, UnsupportedEncodingException, DataFormatException {
+		if (encounter == null) {
+			return;
+		}
+		Reference practitionerRef = EncounterPractitionerSupport.extractParticipantIndividualReference(encounter);
+		if (practitionerRef != null) {
+			includeReferencedSupportingResource(builder, practitionerRef, "Practitioner", "[Practitioner]");
+		}
+		for (Reference locationRef : EncounterLocationSupport.extractLocationReferences(encounter)) {
+			includeReferencedSupportingResource(builder, locationRef, "Location", "[Location]");
+		}
+	}
+	
+	private void includeReferencedSupportingResource(VisitTransactionBundleBuilder builder, Reference reference,
+	        String resourceType, String logPrefix) throws ParseException, UnsupportedEncodingException, DataFormatException {
+		String resourceId = referenceResourceId(reference);
+		if (StringUtils.isBlank(resourceId)) {
+			return;
+		}
+		if (builder.hasPutResource(resourceType, resourceId)) {
+			return;
+		}
+		Resource resource = fetchFhirResource(resourceType, resourceId);
+		if (resource == null) {
+			System.err.println("[VisitPush] Encounter references " + resourceType + "/" + resourceId
+			        + " but resource was not found in local FHIR2");
+			return;
+		}
+		validateOrThrow(resource, logPrefix);
+		if (!builder.addPutResource(resource, logPrefix, true)) {
+			System.err.println("[VisitPush] Failed to include " + resourceType + "/" + resourceId
+			        + " referenced by an Encounter in the visit bundle");
 		}
 	}
 	
@@ -799,6 +855,11 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 		return "none";
 	}
 	
+	/**
+	 * Pushes one physical-exam obs (concept 163213) as one FHIR {@code Observation} per parsed
+	 * category (e.g. Eyes, Cardiovascular), each with finding {@code component}s. Routed from
+	 * {@link #populateVisitObservations} when the obs concept matches physical examination.
+	 */
 	private void addPhysicalExamToVisitBuilder(VisitTransactionBundleBuilder builder, String obsUuid,
 	        String cachedValueText) throws ParseException, UnsupportedEncodingException, DataFormatException {
 		System.err.println("[PhysicalExam] Fetching source Observation from OpenMRS, uuid=" + obsUuid);
@@ -822,6 +883,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			return;
 		}
 		
+		// Prefer queued value_text from the visit row; fall back to DB then FHIR valueString.
 		String valueText = cachedValueText;
 		if (StringUtils.isBlank(valueText)) {
 			valueText = commonOperationService.getObsValueText(obsUuid);
@@ -838,15 +900,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			return;
 		}
 		
-		for (ParsedExamCategory category : categories) {
-			System.err.println("[PhysicalExam]   category=\"" + category.getCategoryName() + "\" findings="
-			        + category.getFindings().size());
-			for (ParsedFinding finding : category.getFindings()) {
-				System.err.println("[PhysicalExam]     • " + finding.getItem()
-				        + (finding.getFinding().isEmpty() ? "" : " → " + finding.getFinding()));
-			}
-		}
-		
+		// Full stripped obs text attached as note on every category Observation.
 		String sharedNote = PhysicalExamObservationBuilder.stripHtmlForNote(valueText);
 		System.err.println("[PhysicalExam] Shared note length=" + sharedNote.length());
 		StructuredObsContextSupport.populateBacklogContext(sourceObs, obsUuid,
@@ -863,6 +917,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 				System.err.println("[PhysicalExam] Prepared category " + categoryIndex + "/" + categories.size()
 				        + " identifier=" + identifier + " components=" + categoryObs.getComponent().size());
 			}
+			// Physical exam exports Observations only (no Conditions); empty list satisfies shared helper signature.
 			addStructuredResourcesToVisitBuilder(builder, new ArrayList<Condition>(), categoryObservations, obsUuid,
 			    ProvenanceAssertionClass.PHYSICAL_EXAMINATION, "[PhysicalExam]");
 			System.err.println("[PhysicalExam] Done uuid=" + obsUuid + " added " + categories.size()
@@ -923,6 +978,11 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 		System.err.println("[Referral] Done uuid=" + obsUuid + " added " + built.totalResourceCount() + " resource(s)");
 	}
 	
+	/**
+	 * Pushes one chief-complaint obs (concept 163212) as FHIR {@code Condition}(s) for each parsed
+	 * symptom plus optional associated-symptom {@code Observation}(s) linked via {@code focus}.
+	 * Routed from {@link #populateVisitObservations} when the obs concept matches chief complaint.
+	 */
 	private void addChiefComplaintToVisitBuilder(VisitTransactionBundleBuilder builder, String obsUuid,
 	        String cachedValueText) throws ParseException, UnsupportedEncodingException, DataFormatException {
 		System.err.println("[ChiefComplaint] Fetching source Observation from OpenMRS, uuid=" + obsUuid);
@@ -946,6 +1006,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			return;
 		}
 		
+		// Prefer queued value_text from the visit row; fall back to DB then FHIR valueString.
 		String valueText = cachedValueText;
 		if (StringUtils.isBlank(valueText)) {
 			valueText = commonOperationService.getObsValueText(obsUuid);
@@ -955,6 +1016,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			System.err.println("[ChiefComplaint] Using valueString from FHIR Observation");
 		}
 		
+		// Layer 1 backlog: record unmapped symptom terms during ClinicalTermCodingResolver lookups.
 		StructuredObsContextSupport.populateBacklogContext(sourceObs, obsUuid,
 		    ChiefComplaintConstants.CHIEF_COMPLAINT_CONCEPT_ID);
 		ChiefComplaintBuildResult built;
@@ -982,12 +1044,19 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 		        .println("[ChiefComplaint] Done uuid=" + obsUuid + " added " + built.totalResourceCount() + " resource(s)");
 	}
 	
+	/**
+	 * Pushes all diagnosis obs (concept 163219) for one OpenMRS encounter as FHIR {@code Condition}
+	 * resources plus a single updated {@code Encounter} with {@code diagnosis[]} (ranked
+	 * primary/secondary). Rows are pre-grouped by {@code encounter_id} in
+	 * {@link #populateVisitObservations}; this method runs once per group.
+	 */
 	private void addDiagnosisToVisitBuilder(VisitTransactionBundleBuilder builder, List<CompletedRecord> diagnosisRows)
 	        throws ParseException, UnsupportedEncodingException, DataFormatException {
 		if (diagnosisRows == null || diagnosisRows.isEmpty()) {
 			return;
 		}
 		
+		// All rows share the same encounter; use the first obs only to resolve the FHIR Encounter reference.
 		Observation firstObs = fetchSourceObservation(diagnosisRows.get(0).getUuid(), "[Diagnosis]");
 		if (firstObs == null || !firstObs.hasEncounter() || !firstObs.getEncounter().hasReference()) {
 			System.err.println("[Diagnosis] Missing source encounter reference; skipping grouped diagnosis send");
@@ -1004,6 +1073,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			return;
 		}
 		
+		// Child encounters may lack participant; parent supplies asserter on Condition (doc §6).
 		Encounter parentEncounter = fetchParentEncounterIfNeeded(sourceEncounter);
 		
 		List<Encounter.DiagnosisComponent> diagnosisComponents = new ArrayList<Encounter.DiagnosisComponent>();
@@ -1015,6 +1085,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			if (sourceObs == null) {
 				continue;
 			}
+			// Parse value_text (JSON or "code::name:Primary & Confirmed") → Condition + rank.
 			DiagnosisBuildResult built = transfer.build(sourceObs, row.getUuid(), row.getValueText(), unknownRankBase++,
 			        sourceEncounter, parentEncounter);
 			if (built == null || built.getCondition() == null) {
@@ -1029,6 +1100,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			builder.addPutResource(condition, "[Diagnosis]");
 			diagnosisResources.add(condition);
 			
+			// Link this Condition on the Encounter with HL7 diagnosis role + primary/secondary rank.
 			Encounter.DiagnosisComponent dc = new Encounter.DiagnosisComponent();
 			dc.setCondition(new Reference("Condition/" + conditionId));
 			dc.setUse(new CodeableConcept().addCoding(new Coding().setSystem(DiagnosisConstants.DIAGNOSIS_ROLE_SYSTEM)
@@ -1044,6 +1116,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			return;
 		}
 		
+		// One PUT Encounter carries the full ranked diagnosis list for this visit child encounter.
 		sourceEncounter.setDiagnosis(diagnosisComponents);
 		validateOrThrow(sourceEncounter, "[Diagnosis]");
 		builder.addPutResource(sourceEncounter, "[Diagnosis]");

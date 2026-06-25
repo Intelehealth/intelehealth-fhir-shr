@@ -39,4 +39,13 @@ public interface ShrSyncLogService {
 	int runRetryCycle(int limitPerCycle);
 	
 	int runPendingPushCycle(int limitPerCycle);
+	
+	/**
+	 * Retries one failed sync-log row inside an isolated transaction (see
+	 * {@link ShrSyncLogRetryRunner}).
+	 * 
+	 * @return {@code true} when the attempt row reached a terminal status ({@code SUCCESS},
+	 *         {@code FAILED}, or {@code FAILED_PERMANENT})
+	 */
+	boolean replaySingleFailedRow(IntelehealthShrSyncLog failed);
 }

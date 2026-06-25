@@ -90,6 +90,7 @@ public final class OpenMrsConceptCodingResolver {
 			for (int i = 0; i < sources.size(); i++) {
 				query.setString("source" + i, sources.get(i));
 			}
+			// Hibernate appends LIMIT via setMaxResults; do not add LIMIT to the SQL string.
 			query.setMaxResults(1);
 			Object row = query.uniqueResult();
 			if (!(row instanceof Object[])) {
@@ -133,7 +134,7 @@ public final class OpenMrsConceptCodingResolver {
 		        + "ORDER BY CASE WHEN cn.concept_name_type = 'FULLY_SPECIFIED' THEN 0 ELSE 1 END, "
 		        + "CASE WHEN cn.locale_preferred = 1 THEN 0 ELSE 1 END, " + "CASE cs.name WHEN '" + SNOMED_SOURCE
 		        + "' THEN 0 WHEN '" + LOINC_SOURCE + "' THEN 1 ELSE 2 END, "
-		        + "CASE cmt.name WHEN 'SAME-AS' THEN 0 WHEN 'NARROWER-THAN' THEN 1 ELSE 2 END " + "LIMIT 1";
+		        + "CASE cmt.name WHEN 'SAME-AS' THEN 0 WHEN 'NARROWER-THAN' THEN 1 ELSE 2 END";
 	}
 	
 	private static List<String> configuredSources() {

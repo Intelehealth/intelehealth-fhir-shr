@@ -5,5 +5,7 @@ package org.openmrs.module.ihshr.synclog;
  */
 public enum ShrSyncLogStatus {
 	
-	PENDING, SUCCESS, FAILED, FAILED_PERMANENT
+	PENDING, SUCCESS, FAILED, FAILED_PERMANENT,
+	/** Prior attempt row replaced by a newer retry; never re-queued. */
+	SUPERSEDED
 }

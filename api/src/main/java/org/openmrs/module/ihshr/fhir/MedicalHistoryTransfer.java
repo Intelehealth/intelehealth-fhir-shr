@@ -9,12 +9,19 @@ import org.hl7.fhir.r4.model.Condition;
 import org.hl7.fhir.r4.model.MedicationStatement;
 import org.hl7.fhir.r4.model.Observation;
 import org.openmrs.module.ihshr.domain.ParsedMedicalHistoryTopic;
-import org.openmrs.module.ihshr.parser.ClinicalJsonValueTexts;
 import org.openmrs.module.ihshr.parser.MedicalHistoryNegativeFilter;
 import org.openmrs.module.ihshr.parser.MedicalHistoryParser;
 import org.openmrs.module.ihshr.parser.MedicalHistoryTopicConfig;
 import com.google.gson.JsonObject;
 
+/**
+ * Builds SHR-ready patient medical history resources from one OpenMRS obs (concept 163210).
+ * <p>
+ * Flow: parse {@code Topic - Value} lines from obs text → drop negative answers (e.g. "No") → route
+ * each positive topic to the FHIR type declared in {@code patient-history-topics.json}
+ * (Observation, AllergyIntolerance, MedicationStatement, or Condition). A visit with all-negative
+ * answers produces no resources.
+ */
 public class MedicalHistoryTransfer {
 	
 	private final MedicalHistoryParser parser = new MedicalHistoryParser();
@@ -34,6 +41,8 @@ public class MedicalHistoryTransfer {
 		
 		MedicalHistoryTopicConfig config = MedicalHistoryTopicConfig.getInstance();
 		List<ParsedMedicalHistoryTopic> allTopics = parser.parse(valueText);
+		
+		// Doc §7.4: suppress "No" / negative-pattern answers — nothing is pushed for those topics.
 		List<ParsedMedicalHistoryTopic> positiveTopics = new ArrayList<ParsedMedicalHistoryTopic>();
 		for (ParsedMedicalHistoryTopic topic : allTopics) {
 			if (!MedicalHistoryNegativeFilter.isNegative(topic.getValue(), config.getNegativePatterns())) {
@@ -49,6 +58,7 @@ public class MedicalHistoryTransfer {
 		List<MedicationStatement> medications = new ArrayList<MedicationStatement>();
 		List<Condition> conditions = new ArrayList<Condition>();
 		
+		// Each topic maps to one FHIR resource type via patient-history-topics.json "resource" field.
 		int conditionIndex = 0;
 		for (ParsedMedicalHistoryTopic topic : positiveTopics) {
 			JsonObject topicConfig = config.getTopicConfig(topic.getTopicKey());
@@ -58,12 +68,15 @@ public class MedicalHistoryTransfer {
 			String topicNote = MedicalHistoryParser.buildTopicNoteText(topic);
 			String resourceType = topicConfig.get("resource").getAsString();
 			if ("Observation".equalsIgnoreCase(resourceType)) {
+				// Social-history style topics (pregnancy, smoking, alcohol, etc.)
 				observations.add(builder.buildObservation(sourceObs, obsUuid, topic, topicConfig, topicNote, 0));
 			} else if ("AllergyIntolerance".equalsIgnoreCase(resourceType)) {
 				allergies.add(builder.buildAllergy(sourceObs, obsUuid, topic, topicConfig, topicNote, 0));
 			} else if ("MedicationStatement".equalsIgnoreCase(resourceType)) {
 				medications.add(builder.buildMedicationStatement(sourceObs, obsUuid, topic, topicConfig, topicNote, 0));
 			} else if ("Condition".equalsIgnoreCase(resourceType)) {
+				// Past medical problems: one Condition per disease when comma_split is true
+				// (e.g. "Diabetes, Hypertension" → two problem-list-item Conditions).
 				String lookupFile = topicConfig.has("lookup_file") ? topicConfig.get("lookup_file").getAsString() : null;
 				boolean commaSplit = !topicConfig.has("comma_split") || topicConfig.get("comma_split").getAsBoolean();
 				List<String> diseases = commaSplit ? MedicalHistoryParser.splitMedicalHistoryConditions(topic.getValue())

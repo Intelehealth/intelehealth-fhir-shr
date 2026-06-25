@@ -76,6 +76,25 @@ public final class ShrPushMetaApplicator {
 		}
 	}
 	
+	/**
+	 * Temporary pull-side fallback: use {@code meta.tag} origin code (e.g. {@code intelehealth}) as
+	 * facility name when {@link org.hl7.fhir.r4.model.Location} is not present on the encounter.
+	 */
+	public static String originTagFacilityName(Resource resource) {
+		if (resource == null || !resource.hasMeta() || !resource.getMeta().hasTag()) {
+			return null;
+		}
+		for (Coding tag : resource.getMeta().getTag()) {
+			if (tag == null) {
+				continue;
+			}
+			if (TAG_ORIGIN_SYSTEM.equals(tag.getSystem()) && StringUtils.isNotBlank(tag.getCode())) {
+				return tag.getCode();
+			}
+		}
+		return null;
+	}
+	
 	private static Coding buildTag(String system, String code, String display) {
 		Coding coding = new Coding();
 		coding.setSystem(system);

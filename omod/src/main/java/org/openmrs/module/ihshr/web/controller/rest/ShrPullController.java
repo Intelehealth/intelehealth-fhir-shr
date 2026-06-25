@@ -6,11 +6,15 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.ihshr.pull.ShrBinaryContent;
 import org.openmrs.module.ihshr.pull.ShrHistoryRequest;
+import org.openmrs.module.ihshr.pull.ShrPullAuthSupport;
 import org.openmrs.module.ihshr.pull.ShrPullErrorCode;
 import org.openmrs.module.ihshr.pull.ShrPullException;
 import org.openmrs.module.ihshr.pull.ShrPullResult;
+import org.openmrs.module.ihshr.pull.ShrPullResponseSupport;
 import org.openmrs.module.ihshr.pull.ShrPullService;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -22,18 +26,28 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * Doctor portal SHR pull API (doc §4 / §9).
+ * <p>
+ * <b>Base URL:</b> {@code openmrsBase}/ws/rest/v1/ihshr/shr/... (same pattern as ihmodule
+ * {@code ConfigFacilityRestController}). Legacy servlet paths {@code module/ihshr/*.form} are also
+ * mapped (same pattern as {@code PatientExchangeProxyRestController}).
  */
 @Controller
-@RequestMapping("/health-record-exchange/api/v1/shr")
+@RequestMapping("/rest/v1/ihshr/shr")
 public class ShrPullController {
 	
 	@RequestMapping(value = "/patients/{openmrsPatientUuid}/resolve", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
 	public ResponseEntity<?> resolvePatient(@PathVariable("openmrsPatientUuid") String openmrsPatientUuid) {
 		try {
-			return ResponseEntity.ok(getService().resolvePatient(openmrsPatientUuid));
+			ShrPullAuthSupport.requirePullAccess();
+			Object body = getService().resolvePatient(openmrsPatientUuid);
+			return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
 		}
 		catch (ShrPullException ex) {
 			return errorResponse(ex);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<Object>("Request failed", HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	
@@ -41,6 +55,7 @@ public class ShrPullController {
 	public ResponseEntity<?> getHistory(@PathVariable("openmrsPatientUuid") String openmrsPatientUuid,
 	        @RequestParam Map<String, String> queryParams) {
 		try {
+			ShrPullAuthSupport.requirePullAccess();
 			ShrHistoryRequest request = ShrHistoryRequest.fromQueryParams(queryParams);
 			ShrPullResult result = getService().getHistory(openmrsPatientUuid, request);
 			return formatResponse(result);
@@ -48,31 +63,50 @@ public class ShrPullController {
 		catch (ShrPullException ex) {
 			return errorResponse(ex);
 		}
+		catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<Object>("Request failed", HttpStatus.INTERNAL_SERVER_ERROR);
+		}
 	}
 	
 	@RequestMapping(value = "/history/{openmrsPatientUuid}/page", method = RequestMethod.GET)
 	public ResponseEntity<?> getPage(@PathVariable("openmrsPatientUuid") String openmrsPatientUuid,
-	        @RequestParam("url") String pageUrl, @RequestParam(value = "format", defaultValue = "envelope") String format) {
+	        @RequestParam Map<String, String> queryParams) {
 		try {
-			ShrPullResult result = getService().getPage(openmrsPatientUuid, pageUrl, format);
+			ShrPullAuthSupport.requirePullAccess();
+			String pageUrl = queryParams.get("url");
+			String format = StringUtils.defaultIfBlank(queryParams.get("format"), "envelope");
+			boolean includeLocalEcho = Boolean.parseBoolean(StringUtils.defaultString(queryParams.get("includeLocalEcho")));
+			ShrPullResult result = getService().getPage(openmrsPatientUuid, pageUrl, format, includeLocalEcho);
 			return formatResponse(result);
 		}
 		catch (ShrPullException ex) {
 			return errorResponse(ex);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<Object>("Request failed", HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	
 	@RequestMapping(value = "/history/{openmrsPatientUuid}/refresh", method = RequestMethod.GET)
 	public ResponseEntity<?> refresh(@PathVariable("openmrsPatientUuid") String openmrsPatientUuid,
-	        @RequestParam("since") String since, @RequestParam(value = "count", defaultValue = "50") int count,
-	        @RequestParam(value = "includeLocalEcho", defaultValue = "false") boolean includeLocalEcho,
-	        @RequestParam(value = "format", defaultValue = "envelope") String format) {
+	        @RequestParam Map<String, String> queryParams) {
 		try {
+			ShrPullAuthSupport.requirePullAccess();
+			String since = queryParams.get("since");
+			int count = parseCount(queryParams.get("count"), 50);
+			boolean includeLocalEcho = Boolean.parseBoolean(StringUtils.defaultString(queryParams.get("includeLocalEcho")));
+			String format = StringUtils.defaultIfBlank(queryParams.get("format"), "envelope");
 			ShrPullResult result = getService().refresh(openmrsPatientUuid, since, count, includeLocalEcho, format);
 			return formatResponse(result);
 		}
 		catch (ShrPullException ex) {
 			return errorResponse(ex);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<Object>("Request failed", HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	
@@ -80,6 +114,7 @@ public class ShrPullController {
 	public ResponseEntity<?> search(@PathVariable("openmrsPatientUuid") String openmrsPatientUuid,
 	        @PathVariable("resourceType") String resourceType, @RequestParam Map<String, String> queryParams) {
 		try {
+			ShrPullAuthSupport.requirePullAccess();
 			String format = StringUtils.defaultIfBlank(queryParams.get("format"), "envelope");
 			boolean includeLocalEcho = Boolean.parseBoolean(StringUtils.defaultString(queryParams.get("includeLocalEcho")));
 			Map<String, String> extra = new HashMap<String, String>(queryParams);
@@ -92,25 +127,60 @@ public class ShrPullController {
 		catch (ShrPullException ex) {
 			return errorResponse(ex);
 		}
+		catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<Object>("Request failed", HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
+	@RequestMapping(value = "/binary/{binaryId}", method = RequestMethod.GET)
+	public ResponseEntity<byte[]> streamBinary(@PathVariable("binaryId") String binaryId) {
+		try {
+			ShrPullAuthSupport.requirePullAccess();
+			ShrBinaryContent content = getService().readBinaryBytes(binaryId);
+			MediaType mediaType = MediaType.parseMediaType(StringUtils.defaultIfBlank(content.getContentType(),
+			    MediaType.APPLICATION_OCTET_STREAM_VALUE));
+			return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(mediaType).body(content.getData());
+		}
+		catch (ShrPullException ex) {
+			return new ResponseEntity<byte[]>(mapStatus(ex.getErrorCode()));
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<byte[]>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
 	}
 	
 	@RequestMapping(value = "/content/Binary/{binaryId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-	public ResponseEntity<?> readBinary(@PathVariable("binaryId") String binaryId) {
+	public ResponseEntity<?> readBinaryJson(@PathVariable("binaryId") String binaryId) {
 		try {
-			return ResponseEntity.ok(getService().readBinaryContent(binaryId));
+			ShrPullAuthSupport.requirePullAccess();
+			Object body = getService().readBinaryContent(binaryId);
+			return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
 		}
 		catch (ShrPullException ex) {
 			return errorResponse(ex);
 		}
+		catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<Object>("Request failed", HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
+	private static int parseCount(String value, int defaultValue) {
+		if (StringUtils.isBlank(value)) {
+			return defaultValue;
+		}
+		try {
+			return Integer.parseInt(value.trim());
+		}
+		catch (NumberFormatException ex) {
+			throw new ShrPullException(ShrPullErrorCode.INVALID_FILTER, "Invalid count: " + value);
+		}
 	}
 	
 	private ResponseEntity<?> formatResponse(ShrPullResult result) {
-		String format = result.getRequest() != null ? result.getRequest().getFormat() : "envelope";
-		if ("fhir".equalsIgnoreCase(format) || "fhir-merged".equalsIgnoreCase(format)) {
-			String body = getService().encodeBundle(result.getMerged());
-			return ResponseEntity.ok().contentType(MediaType.parseMediaType("application/fhir+json")).body(body);
-		}
-		return ResponseEntity.ok(getService().toEnvelope(result));
+		return ShrPullResponseSupport.toResponse(result, getService());
 	}
 	
 	private ResponseEntity<?> errorResponse(ShrPullException ex) {
@@ -132,6 +202,10 @@ public class ShrPullController {
 			case UNAUTHORIZED_PAGE_URL:
 			case INVALID_FILTER:
 				return HttpStatus.BAD_REQUEST;
+			case UNAUTHORIZED:
+				return HttpStatus.UNAUTHORIZED;
+			case FORBIDDEN:
+				return HttpStatus.FORBIDDEN;
 			default:
 				return HttpStatus.INTERNAL_SERVER_ERROR;
 		}

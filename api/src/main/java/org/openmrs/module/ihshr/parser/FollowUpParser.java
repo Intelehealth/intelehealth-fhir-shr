@@ -13,8 +13,17 @@ import org.apache.commons.lang3.StringUtils;
 import org.openmrs.module.ihshr.domain.ParsedFollowUp;
 
 /**
- * Parses follow-up obs.value_text (concept 163345). Example:
- * {@code 2026-06-11,Time:10:00 AM,Remark:NA,Type:In person}
+ * Parses follow-up obs {@code value_text} (concept 163345) into {@link ParsedFollowUp} for
+ * {@link org.openmrs.module.ihshr.fhir.FollowUpTransfer}.
+ * <p>
+ * Examples:
+ * <ul>
+ * <li>Scheduled: {@code 2026-06-11,Time:10:00 AM,Remark:NA,Type:In person} — leading ISO date, then
+ * comma-separated {@code Key:Value} fields ({@code Time}, {@code Remark}, {@code Type}).</li>
+ * <li>JSON wrapper: {@code "en":"2026-06-11,Time:10:00 AM,Remark:NA,Type:In person"} — clinical
+ * text is taken from {@code en} via {@link ClinicalJsonValueTexts}.</li>
+ * <li>Not scheduled: {@code No} (case-insensitive) — returns {@code null}; nothing is pushed.</li>
+ * </ul>
  */
 public class FollowUpParser {
 	
@@ -22,11 +31,16 @@ public class FollowUpParser {
 	
 	private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_LOCAL_DATE;
 	
+	/**
+	 * Returns {@code null} when the patient declined follow-up ({@code No}) or no valid date is
+	 * present.
+	 */
 	public ParsedFollowUp parse(String rawValueText) {
 		String clinical = ClinicalJsonValueTexts.extractClinicalHtml(StringUtils.trimToEmpty(rawValueText));
 		if (clinical.isEmpty() || isDenied(clinical)) {
 			return null;
 		}
+		// "2026-06-11,Time:10:00 AM,Remark:NA,Type:In person"
 		String[] parts = clinical.split(",");
 		if (parts.length == 0) {
 			return null;
@@ -48,11 +62,16 @@ public class FollowUpParser {
 		return parsed;
 	}
 	
+	/** {@code true} when UI stored a lone {@code No} (patient not scheduled for follow-up). */
 	public static boolean isDenied(String rawValueText) {
 		String clinical = ClinicalJsonValueTexts.extractClinicalHtml(StringUtils.trimToEmpty(rawValueText));
 		return "no".equalsIgnoreCase(clinical);
 	}
 	
+	/**
+	 * Maps {@code Time:10:00 AM}, {@code Remark:NA}, {@code Type:In person} onto
+	 * {@link ParsedFollowUp}.
+	 */
 	private static void applyField(ParsedFollowUp parsed, String segment) {
 		String token = StringUtils.trimToEmpty(segment);
 		if (token.isEmpty()) {
@@ -76,6 +95,10 @@ public class FollowUpParser {
 		}
 	}
 	
+	/**
+	 * Combines {@code dateText} + {@code timeText} in the JVM default zone; midnight when time is
+	 * absent.
+	 */
 	private static Date resolveScheduledDateTime(ParsedFollowUp parsed) {
 		try {
 			LocalDate date = LocalDate.parse(parsed.getDateText(), DATE_FORMAT);
@@ -90,6 +113,10 @@ public class FollowUpParser {
 		}
 	}
 	
+	/**
+	 * Parses UI time strings such as {@code 10:00 AM} or {@code 14:30}; returns {@code null} when
+	 * unrecognized.
+	 */
 	static LocalTime parseTime(String timeText) {
 		if (StringUtils.isBlank(timeText)) {
 			return null;

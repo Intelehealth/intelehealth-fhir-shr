@@ -11,6 +11,24 @@ import org.openmrs.module.ihshr.domain.ParsedFamilyHistoryRelative;
 import org.openmrs.module.ihshr.parser.ClinicalJsonValueTexts;
 import org.openmrs.module.ihshr.parser.FamilyHistoryParser;
 
+/**
+ * Builds SHR-ready {@link FamilyMemberHistory} resources from one OpenMRS obs (concept 163211).
+ * Called by {@code DataSendToSHR.addFamilyHistoryToVisitBuilder}.
+ * <p>
+ * Flow: require multilingual JSON with {@code en} clinical text → {@link FamilyHistoryParser}
+ * inverts condition-first UI lines into relative-first rows → one {@link FamilyMemberHistory} per
+ * family member.
+ * <p>
+ * Examples (UI stores {@code Condition, Relative[, Relative]} segments separated by periods):
+ * <ul>
+ * <li>{@code "en":"•Do you have a family history... : High BP, Mother. Diabetes, Mother."} → one
+ * {@code FamilyMemberHistory} for Mother with conditions High BP and Diabetes.</li>
+ * <li>{@code "en":"... High BP, आजोबा, father. Diabetes, आजोबा."} → grandfather (आजोबा) with High
+ * BP + Diabetes; father with High BP only.</li>
+ * <li>{@code "en":"... None."} or plain HTML without {@code en} JSON → empty result, nothing
+ * pushed.</li>
+ * </ul>
+ */
 public class FamilyHistoryTransfer {
 	
 	private static final Pattern HTML_TAG = Pattern.compile("<[^>]+>");
@@ -35,11 +53,13 @@ public class FamilyHistoryTransfer {
 		String sharedNote = stripHtmlForNote(valueText);
 		List<FamilyMemberHistory> resources = new ArrayList<FamilyMemberHistory>();
 		for (ParsedFamilyHistoryRelative relative : relatives) {
+			// One FamilyMemberHistory per relative; conditions[] holds all diseases for that person.
 			resources.add(builder.build(sourceObs, obsUuid, relative, sharedNote));
 		}
 		return new FamilyHistoryBuildResult(resources);
 	}
 	
+	/** Flattened clinical HTML from {@code en} JSON for {@code FamilyMemberHistory.note}. */
 	public static String stripHtmlForNote(String raw) {
 		if (StringUtils.isBlank(raw)) {
 			return "";

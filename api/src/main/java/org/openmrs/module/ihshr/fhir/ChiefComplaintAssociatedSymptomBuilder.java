@@ -119,9 +119,6 @@ public class ChiefComplaintAssociatedSymptomBuilder {
 		if (mapped != null) {
 			return new String[] { mapped.getCode(), mapped.getDisplay() };
 		}
-		if ("anorexia".equalsIgnoreCase(symptomText.trim())) {
-			return new String[] { ChiefComplaintConstants.ANOREXIA_CODE, ChiefComplaintConstants.ANOREXIA_DISPLAY };
-		}
 		return null;
 	}
 	

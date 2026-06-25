@@ -99,23 +99,13 @@
 	</globalProperty>
 	<globalProperty>
 		<property>ihshr.opencr.shr.url</property>
-		<defaultValue>http://192.168.19.152:6001/fhir/</defaultValue>
-		<description>Central SHR FHIR server base URL (e.g. http://host:port/fhir/) for transaction bundle posts.</description>
+		<defaultValue>http://192.168.19.152:6001/shr/fhir/</defaultValue>
+		<description>Central SHR FHIR server base URL for push and pull (e.g. http://host:port/shr/fhir/).</description>
 	</globalProperty>
 	<globalProperty>
 		<property>ihshr.opencr.shr.credential</property>
 		<defaultValue>fhir_app:Admin123</defaultValue>
-		<description>Basic auth for central SHR bundle upload (username:password).</description>
-	</globalProperty>
-	<globalProperty>
-		<property>ihshr.opencr.openhim.url</property>
-		<defaultValue>http://localhost:5001/hapi-fhir-jpaserver/fhir</defaultValue>
-		<description>OpenCR FHIR base URL via OpenHIM (search/read).</description>
-	</globalProperty>
-	<globalProperty>
-		<property>ihshr.opencr.openhim.clientid.password.basic.auth</property>
-		<defaultValue>fhir_app:Admin123</defaultValue>
-		<description>Basic auth for OpenCR/OpenHIM (username:password).</description>
+		<description>Basic auth for central SHR FHIR push and pull (username:password).</description>
 	</globalProperty>
 	<globalProperty>
 		<property>ihshr.unmapped.backlog.enabled</property>
@@ -133,9 +123,9 @@
 		<description>Optional IHSHR-prefixed alias for intelehealth.shr.source.uri (doc §5.3).</description>
 	</globalProperty>
 	<globalProperty>
-		<property>ihshr.shr.pull.openhim.url</property>
-		<defaultValue></defaultValue>
-		<description>SHR pull FHIR base URL via OpenHIM (doc §4). Empty uses ihshr.opencr.openhim.url.</description>
+		<property>ihshr.shr.pull.source.filter.enabled</property>
+		<defaultValue>false</defaultValue>
+		<description>When true, SHR pull queries send _source:not (no-echo, doc §5.3). Set true only if the SHR FHIR server supports the _source search parameter.</description>
 	</globalProperty>
 	<globalProperty>
 		<property>ihshr.shr.pull.default.count</property>
@@ -152,6 +142,16 @@
 		<defaultValue>12</defaultValue>
 		<description>Default lookback window (months) when dateFrom is omitted on pull history.</description>
 	</globalProperty>
+	<globalProperty>
+		<property>ihshr.shr.pull.max.parallel</property>
+		<defaultValue>5</defaultValue>
+		<description>Maximum parallel SHR FHIR queries for custom multi-type pull views.</description>
+	</globalProperty>
+
+	<privilege>
+		<name>Manage IHSHR Pull Debug</name>
+		<description>Allows includeLocalEcho on SHR pull queries (doc §4.2 admin debug toggle).</description>
+	</privilege>
 	<globalProperty>
 		<property>ihshr.obs.chief_complaint.concept.ids</property>
 		<defaultValue>163212,5219</defaultValue>

@@ -6,7 +6,6 @@ import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 import org.hl7.fhir.r4.model.Condition;
-import org.hl7.fhir.r4.model.DateTimeType;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Reference;
 import org.openmrs.module.ihshr.domain.ParsedAssociatedSymptoms;
@@ -15,8 +14,14 @@ import org.openmrs.module.ihshr.domain.ParsedComplaintBundle;
 import org.openmrs.module.ihshr.parser.ChiefComplaintParser;
 
 /**
- * Builds SHR-ready chief-complaint {@link Condition} and associated-symptom {@link Observation}
- * resources.
+ * Builds SHR-ready chief-complaint resources from one OpenMRS obs (concept 163212). Called by
+ * {@code DataSendToSHR.addChiefComplaintToVisitBuilder} while
+ * {@link org.openmrs.module.ihshr.backlog.UnmappedTermBacklogContext} is populated for Layer 1/2
+ * coding misses.
+ * <p>
+ * Flow: parse {@code value_text} via {@link ChiefComplaintParser} → one {@link Condition} per
+ * symptom → optional associated-symptom {@link Observation}(s) with {@code focus} pointing at those
+ * Conditions.
  */
 public class ChiefComplaintTransfer {
 	
@@ -59,6 +64,7 @@ public class ChiefComplaintTransfer {
 		ParsedAssociatedSymptoms associated = bundle.getAssociatedSymptoms();
 		boolean orphanAssociated = false;
 		if (associated != null && !associated.isEmpty()) {
+			// Associated-symptom block without any chief-complaint symptoms still exports Observations (logged upstream).
 			if (conditionFocus.isEmpty()) {
 				orphanAssociated = true;
 			}
@@ -77,6 +83,7 @@ public class ChiefComplaintTransfer {
 		return new ChiefComplaintBuildResult(conditions, associatedObservations, orphanAssociated);
 	}
 	
+	/** Encounter date anchors duration/since parsing in {@link ChiefComplaintParser}. */
 	private static Date resolveEncounterDate(Observation sourceObs) {
 		if (sourceObs.hasEffectiveDateTimeType()) {
 			return sourceObs.getEffectiveDateTimeType().getValue();

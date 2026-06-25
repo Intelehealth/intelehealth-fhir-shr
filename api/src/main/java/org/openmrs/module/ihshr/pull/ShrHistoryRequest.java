@@ -33,6 +33,19 @@ public class ShrHistoryRequest {
 	
 	private String sort = "desc";
 	
+	private boolean sortExplicitlySet;
+	
+	private String labCode;
+	
+	private String labCodeSystem = "http://loinc.org";
+	
+	private String labComparator = "gt";
+	
+	private String labValue;
+	
+	/** Optional full composite override, e.g. http://loinc.org|2339-0$gt180 (doc §9.7). */
+	private String labComposite;
+	
 	private int count = 50;
 	
 	private String pageUrl;
@@ -64,7 +77,17 @@ public class ShrHistoryRequest {
 		req.freeText = trimOrNull(params.get("freeText"));
 		if (StringUtils.isNotBlank(params.get("sort"))) {
 			req.sort = params.get("sort").trim();
+			req.sortExplicitlySet = true;
 		}
+		req.labCode = trimOrNull(params.get("labCode"));
+		if (StringUtils.isNotBlank(params.get("labCodeSystem"))) {
+			req.labCodeSystem = params.get("labCodeSystem").trim();
+		}
+		if (StringUtils.isNotBlank(params.get("labComparator"))) {
+			req.labComparator = params.get("labComparator").trim();
+		}
+		req.labValue = trimOrNull(params.get("labValue"));
+		req.labComposite = trimOrNull(params.get("labComposite"));
 		if (StringUtils.isNotBlank(params.get("count"))) {
 			req.count = parseCount(params.get("count"));
 		}
@@ -72,7 +95,7 @@ public class ShrHistoryRequest {
 			req.includeLocalEcho = Boolean.parseBoolean(params.get("includeLocalEcho").trim());
 		}
 		if (StringUtils.isNotBlank(params.get("format"))) {
-			req.format = params.get("format").trim();
+			req.format = ShrPullFormat.parse(params.get("format")).getParamValue();
 		}
 		req.applyDefaults();
 		return req;
@@ -81,6 +104,9 @@ public class ShrHistoryRequest {
 	private void applyDefaults() {
 		if (dateFrom == null) {
 			dateFrom = LocalDate.now().minusMonths(defaultMonths());
+		}
+		if (!sortExplicitlySet && (view == ShrPullView.VITALS || view == ShrPullView.LABS)) {
+			sort = "asc";
 		}
 		if (count <= 0) {
 			count = defaultCount();
@@ -199,5 +225,37 @@ public class ShrHistoryRequest {
 			return null;
 		}
 		return conditionCodeSystem + "|" + conditionCode.trim();
+	}
+	
+	public String formattedLabCompositeToken() {
+		if (StringUtils.isNotBlank(labComposite)) {
+			return labComposite.trim();
+		}
+		if (StringUtils.isBlank(labCode) || StringUtils.isBlank(labValue)) {
+			return null;
+		}
+		String comparator = StringUtils.defaultIfBlank(labComparator, "gt").trim();
+		String system = StringUtils.defaultIfBlank(labCodeSystem, "http://loinc.org").trim();
+		return system + "|" + labCode.trim() + "$" + comparator + labValue.trim();
+	}
+	
+	public String getLabCode() {
+		return labCode;
+	}
+	
+	public String getLabCodeSystem() {
+		return labCodeSystem;
+	}
+	
+	public String getLabComparator() {
+		return labComparator;
+	}
+	
+	public String getLabValue() {
+		return labValue;
+	}
+	
+	public String getLabComposite() {
+		return labComposite;
 	}
 }

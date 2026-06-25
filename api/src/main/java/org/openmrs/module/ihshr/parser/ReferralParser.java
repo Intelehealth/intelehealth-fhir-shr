@@ -8,10 +8,21 @@ import org.apache.commons.lang3.StringUtils;
 import org.openmrs.module.ihshr.domain.ParsedReferral;
 
 /**
- * Parses referral obs.value_text (concept 165238). Examples:
+ * Parses referral obs {@code value_text} (concept 165238) into {@link ParsedReferral} rows for
+ * {@link org.openmrs.module.ihshr.fhir.ReferralTransfer}.
+ * <p>
+ * Each non-empty line becomes one referral. Lines are split on {@code <br/>} or newlines. Colons
+ * separate fields; {@code ::} is normalized to {@code :} before splitting.
+ * <p>
+ * Examples:
  * <ul>
- * <li>{@code General Physician::Elective:sdasfa}</li>
- * <li>{@code Obstetrician & Gynecologist:PHC:Urgent:4ttr}</li>
+ * <li>{@code General Physician::Elective:sdasfa} → specialty={@code General Physician}, category=
+ * {@code Elective}, notes={@code sdasfa}.</li>
+ * <li>{@code Obstetrician & Gynecologist:PHC:Urgent:4ttr} → specialty, category={@code PHC},
+ * priority={@code Urgent}, notes={@code 4ttr}.</li>
+ * <li>Multi-line: {@code General Physician::Elective:sdasfa<br/>
+ * Obstetrician & Gynecologist:PHC:Urgent:4ttr} → two referrals with index 0 and 1.</li>
+ * <li>JSON wrapper: {@code "en":"General Physician::Elective:sdasfa"} .</li>
  * </ul>
  */
 public class ReferralParser {
@@ -37,6 +48,16 @@ public class ReferralParser {
 		return referrals;
 	}
 	
+	/**
+	 * Parses one line as {@code specialty[:category][:priority][:notes]}.
+	 * <ul>
+	 * <li>2 parts — specialty + notes only.</li>
+	 * <li>3 parts — if middle token is Urgent/Routine/ASAP/STAT → priority + notes; else category +
+	 * notes.</li>
+	 * <li>4+ parts — specialty, category, priority, notes (notes may contain extra colons via
+	 * {@link #joinTail}).</li>
+	 * </ul>
+	 */
 	private ParsedReferral parseLine(String rawLine) {
 		String line = StringUtils.trimToEmpty(rawLine);
 		if (line.isEmpty()) {
@@ -72,6 +93,7 @@ public class ReferralParser {
 		return parsed;
 	}
 	
+	/** Rejoins note text when free text contains colons (e.g. {@code note:with:colons}). */
 	private static String joinTail(String[] parts, int start) {
 		StringBuilder builder = new StringBuilder();
 		for (int i = start; i < parts.length; i++) {
@@ -83,6 +105,7 @@ public class ReferralParser {
 		return builder.toString().trim();
 	}
 	
+	/** Recognizes FHIR ServiceRequest priority tokens in the middle segment of a 3-part line. */
 	static boolean isPriorityToken(String value) {
 		if (StringUtils.isBlank(value)) {
 			return false;

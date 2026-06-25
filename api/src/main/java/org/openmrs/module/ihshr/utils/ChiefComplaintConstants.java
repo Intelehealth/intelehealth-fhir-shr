@@ -38,10 +38,6 @@ public final class ChiefComplaintConstants {
 	
 	public static final String INTERPRETATION_NEG = "NEG";
 	
-	public static final String ANOREXIA_CODE = "79890006";
-	
-	public static final String ANOREXIA_DISPLAY = "Loss of appetite (finding)";
-	
 	public static String conditionIdentifier(String obsUuid, int index) {
 		return obsUuid + "::cc-" + index;
 	}

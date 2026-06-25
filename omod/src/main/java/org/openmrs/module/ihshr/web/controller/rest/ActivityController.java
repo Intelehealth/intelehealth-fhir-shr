@@ -16,10 +16,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
 @Controller
-@RequestMapping("/health-record-exchange/api/v1/control")
 public class ActivityController {
 	
-	@RequestMapping(value = "/activity", method = RequestMethod.GET)
+	@RequestMapping(value = { "/health-record-exchange/api/v1/control/activity",
+	        "/rest/v1/ihshr/control/activity", "module/ihshr/hreActivity.form" }, method = RequestMethod.GET)
 	public ResponseEntity<?> activity() throws ParseException, JSONException, IOException {
 		ConfigDataSyncService configDataSyncService = Context.getRegisteredComponent("ihshrConfigDataSyncService",
 		    ConfigDataSyncService.class);

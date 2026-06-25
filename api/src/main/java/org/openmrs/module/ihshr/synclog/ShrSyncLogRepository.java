@@ -19,6 +19,30 @@ public class ShrSyncLogRepository {
 		        .get(IntelehealthShrSyncLog.class, id);
 	}
 	
+	public void evict(IntelehealthShrSyncLog row) {
+		if (row != null) {
+			IhshrDbSessionFactory.get().getCurrentSession().evict(row);
+		}
+	}
+	
+	public IntelehealthShrSyncLog findByVisitAndAttempt(String visitUuid, int attemptNumber) {
+		String hql = "FROM IntelehealthShrSyncLog l WHERE l.visitUuid = :visitUuid AND l.attemptNumber = :attemptNumber";
+		return (IntelehealthShrSyncLog) IhshrDbSessionFactory.get().getCurrentSession().createQuery(hql)
+		        .setString("visitUuid", visitUuid).setInteger("attemptNumber", attemptNumber).uniqueResult();
+	}
+	
+	@SuppressWarnings("unchecked")
+	public IntelehealthShrSyncLog findOpenPendingForVisit(String visitUuid) {
+		String hql = "FROM IntelehealthShrSyncLog l WHERE l.visitUuid = :visitUuid AND l.status = :status "
+		        + "AND l.completedAt IS NULL AND l.httpStatusCode IS NULL ORDER BY l.attemptNumber DESC";
+		Query query = IhshrDbSessionFactory.get().getCurrentSession().createQuery(hql);
+		query.setString("visitUuid", visitUuid);
+		query.setParameter("status", ShrSyncLogStatus.PENDING);
+		query.setMaxResults(1);
+		List<IntelehealthShrSyncLog> rows = query.list();
+		return rows.isEmpty() ? null : rows.get(0);
+	}
+	
 	public int nextAttemptNumberForVisit(String visitUuid) {
 		String sql = "SELECT COALESCE(MAX(attempt_number), 0) + 1 FROM intelehealth_shr_sync_log WHERE visit_uuid = :visitUuid";
 		Number result = (Number) IhshrDbSessionFactory.get().getCurrentSession().createSQLQuery(sql)

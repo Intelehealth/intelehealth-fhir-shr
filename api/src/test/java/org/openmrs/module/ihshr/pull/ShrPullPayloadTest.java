@@ -75,6 +75,15 @@ public class ShrPullPayloadTest {
 		ShrFhirQuery refreshQuery = ShrQueryTranslator.buildRefreshQuery(SHR_PATIENT_ID, "2026-05-01T00:00:00Z", 50, false);
 		printSection("GET /history/{uuid}/refresh?since=...", singleQueryMap(refreshQuery));
 		
+		ShrHistoryRequest labsRequest = ShrHistoryRequest.fromQueryParams(params("view", "labs", "labCode", "2339-0",
+		    "labValue", "180"));
+		List<ShrFhirQuery> labsQueries = ShrQueryTranslator.buildHistoryQueries(SHR_PATIENT_ID, labsRequest);
+		printSection("GET /history/{uuid}?view=labs — upstream FHIR URL", queryUrlMap(labsQueries));
+		
+		ShrHistoryRequest vitalsRequest = ShrHistoryRequest.fromQueryParams(params("view", "vitals"));
+		List<ShrFhirQuery> vitalsQueries = ShrQueryTranslator.buildHistoryQueries(SHR_PATIENT_ID, vitalsRequest);
+		printSection("GET /history/{uuid}?view=vitals — upstream FHIR URL", queryUrlMap(vitalsQueries));
+		
 		String resolveUrl = ShrQueryTranslator.buildPatientResolveUrl(SAMPLE_CRUID);
 		printSection("CRUID → SHR Patient lookup URL", map("url", resolveUrl));
 		
@@ -96,7 +105,8 @@ public class ShrPullPayloadTest {
 		writeJson(outDir, "shr-pull-custom-envelope.json", customEnvelope);
 		writeText(outDir, "shr-pull-custom-fhir-bundle.json", fhirOnly);
 		writeJson(outDir, "shr-pull-query-urls.json",
-		    buildQueryCatalog(defaultQueries, customQueries, refreshQuery, resolveUrl));
+		    buildQueryCatalog(defaultQueries, customQueries, refreshQuery, labsQueries, vitalsQueries, resolveUrl));
+		writeJson(outDir, "shr-pull-binary-json-response.json", sampleBinaryJsonResponse());
 		
 		System.err.println();
 		System.err.println("Wrote samples to: " + outDir.getAbsolutePath());
@@ -128,14 +138,12 @@ public class ShrPullPayloadTest {
 	}
 	
 	private ShrPullResult buildCustomMergedResult(List<ShrFhirQuery> queries) {
-		Bundle encounterBundle = bundleWith(sampleEncounterFromOtherFacility());
-		Bundle conditionBundle = bundleWith(sampleConditionFromOtherFacility());
+		Bundle encounterBundle = bundleWith(sampleEncounterFromOtherFacility(), sampleConditionFromOtherFacility());
 		
 		List<ShrBundleMerger.ExecutedQuery> executed = new ArrayList<ShrBundleMerger.ExecutedQuery>();
 		executed.add(new ShrBundleMerger.ExecutedQuery(queries.get(0), encounterBundle));
-		executed.add(new ShrBundleMerger.ExecutedQuery(queries.get(1), conditionBundle));
 		
-		Bundle merged = ShrBundleMerger.merge(Arrays.asList(encounterBundle, conditionBundle));
+		Bundle merged = ShrBundleMerger.merge(Arrays.asList(encounterBundle));
 		merged.setTotal(2);
 		
 		ShrPullResult result = new ShrPullResult();
@@ -284,13 +292,24 @@ public class ShrPullPayloadTest {
 	}
 	
 	private static Map<String, Object> buildQueryCatalog(List<ShrFhirQuery> defaultQueries,
-	        List<ShrFhirQuery> customQueries, ShrFhirQuery refreshQuery, String resolveUrl) {
+	        List<ShrFhirQuery> customQueries, ShrFhirQuery refreshQuery, List<ShrFhirQuery> labsQueries,
+	        List<ShrFhirQuery> vitalsQueries, String resolveUrl) {
 		Map<String, Object> catalog = new LinkedHashMap<String, Object>();
 		catalog.put("patientResolve", resolveUrl);
 		catalog.put("defaultTimeline", queryUrlMap(defaultQueries));
 		catalog.put("customMultiType", queryUrlMap(customQueries));
+		catalog.put("labsComposite", queryUrlMap(labsQueries));
+		catalog.put("vitalsTrend", queryUrlMap(vitalsQueries));
 		catalog.put("refresh", singleQueryMap(refreshQuery));
 		return catalog;
+	}
+	
+	private static Map<String, Object> sampleBinaryJsonResponse() {
+		Map<String, Object> body = new LinkedHashMap<String, Object>();
+		body.put("id", "binary-img-001");
+		body.put("contentType", "image/jpeg");
+		body.put("data", "/9j/4AAQSkZJRg==");
+		return body;
 	}
 	
 	private static Map<String, String> params(String... kv) {
