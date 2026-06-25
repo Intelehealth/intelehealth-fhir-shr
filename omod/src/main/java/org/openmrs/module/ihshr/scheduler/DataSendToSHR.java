@@ -43,6 +43,7 @@ import org.openmrs.module.ihshr.fhir.ChiefComplaintBuildResult;
 import org.openmrs.module.ihshr.fhir.ChiefComplaintTransfer;
 import org.openmrs.module.ihshr.fhir.DiagnosisBuildResult;
 import org.openmrs.module.ihshr.fhir.DiagnosisTransfer;
+import org.openmrs.module.ihshr.fhir.EncounterLocationSupport;
 import org.openmrs.module.ihshr.fhir.EncounterPractitionerSupport;
 import org.openmrs.module.ihshr.fhir.FamilyHistoryBuildResult;
 import org.openmrs.module.ihshr.fhir.FamilyHistoryTransfer;
@@ -412,7 +413,8 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 		catch (IllegalStateException ex) {
 			System.err.println("[VisitPush] " + operationLabel + " for visit " + pushRow.getVisitUuid() + " failed: "
 			        + ex.getMessage());
-			return false;
+			shrSyncLogService.markFailed(pushRow, null, ex.getMessage(), false);
+			return true;
 		}
 		catch (Exception ex) {
 			System.err.println("[VisitPush] " + operationLabel + " failed for sync log id=" + pushRow.getId() + ": "
@@ -460,6 +462,7 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 			addEncounterResourceToVisitBuilder(builder, enc.getUuid(), false);
 		}
 		resolveEncounterPartOfReferences(builder);
+		includeAllEncounterReferencedResources(builder);
 		
 		if (!encounterIds.isEmpty()) {
 			populateVisitObservations(builder, encounterIds, visitUuid);
@@ -559,6 +562,49 @@ public class DataSendToSHR extends IHConstant implements ShrVisitSyncPushContrac
 		included = builder.getIncludedEncounterIds();
 		for (Encounter encounter : builder.getEncounterResources()) {
 			EncounterPartOfSupport.stripUnresolvedPartOf(encounter, included);
+		}
+	}
+	
+	private void includeAllEncounterReferencedResources(VisitTransactionBundleBuilder builder) throws ParseException,
+	        UnsupportedEncodingException, DataFormatException {
+		for (Encounter encounter : builder.getEncounterResources()) {
+			includeReferencedEncounterResources(builder, encounter);
+		}
+	}
+	
+	private void includeReferencedEncounterResources(VisitTransactionBundleBuilder builder, Encounter encounter)
+	        throws ParseException, UnsupportedEncodingException, DataFormatException {
+		if (encounter == null) {
+			return;
+		}
+		Reference practitionerRef = EncounterPractitionerSupport.extractParticipantIndividualReference(encounter);
+		if (practitionerRef != null) {
+			includeReferencedSupportingResource(builder, practitionerRef, "Practitioner", "[Practitioner]");
+		}
+		for (Reference locationRef : EncounterLocationSupport.extractLocationReferences(encounter)) {
+			includeReferencedSupportingResource(builder, locationRef, "Location", "[Location]");
+		}
+	}
+	
+	private void includeReferencedSupportingResource(VisitTransactionBundleBuilder builder, Reference reference,
+	        String resourceType, String logPrefix) throws ParseException, UnsupportedEncodingException, DataFormatException {
+		String resourceId = referenceResourceId(reference);
+		if (StringUtils.isBlank(resourceId)) {
+			return;
+		}
+		if (builder.hasPutResource(resourceType, resourceId)) {
+			return;
+		}
+		Resource resource = fetchFhirResource(resourceType, resourceId);
+		if (resource == null) {
+			System.err.println("[VisitPush] Encounter references " + resourceType + "/" + resourceId
+			        + " but resource was not found in local FHIR2");
+			return;
+		}
+		validateOrThrow(resource, logPrefix);
+		if (!builder.addPutResource(resource, logPrefix, true)) {
+			System.err.println("[VisitPush] Failed to include " + resourceType + "/" + resourceId
+			        + " referenced by an Encounter in the visit bundle");
 		}
 	}
 	

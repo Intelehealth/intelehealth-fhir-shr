@@ -15,6 +15,7 @@ import org.openmrs.module.ihshr.domain.FhirResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +41,10 @@ public class ShrSyncLogServiceImpl implements ShrSyncLogService {
 	
 	@Autowired(required = false)
 	private ShrSyncAdminAlertContract adminAlertService;
+	
+	@Autowired
+	@Lazy
+	private ShrSyncLogRetryRunner retryRunner;
 	
 	@Override
 	@Transactional
@@ -192,7 +197,8 @@ public class ShrSyncLogServiceImpl implements ShrSyncLogService {
 		List<IntelehealthShrSyncLog> pending = repository.findPendingAwaitingPush(limit);
 		int processed = 0;
 		for (IntelehealthShrSyncLog row : pending) {
-			if (pushStoredBundle(row, row, "deferred pending push")) {
+			pushStoredBundle(row, "deferred pending push");
+			if (isTerminalStatus(row.getStatus())) {
 				processed++;
 			}
 		}
@@ -201,57 +207,86 @@ public class ShrSyncLogServiceImpl implements ShrSyncLogService {
 	
 	private int replayFailedRows(int limit) {
 		Set<Long> seenIds = new LinkedHashSet<>();
+		Set<String> seenVisitUuids = new LinkedHashSet<>();
 		List<IntelehealthShrSyncLog> due = new ArrayList<>();
 		for (IntelehealthShrSyncLog row : repository.findFailedDueForRetry(limit)) {
-			if (seenIds.add(row.getId())) {
+			if (seenIds.add(row.getId()) && seenVisitUuids.add(row.getVisitUuid())) {
 				due.add(row);
 			}
 		}
 		int remaining = Math.max(0, limit - due.size());
 		if (remaining > 0) {
 			for (IntelehealthShrSyncLog row : repository.findFailedPermanentEligibleForRetry(remaining)) {
-				if (seenIds.add(row.getId())) {
+				if (seenIds.add(row.getId()) && seenVisitUuids.add(row.getVisitUuid())) {
 					due.add(row);
 				}
 			}
 		}
 		int processed = 0;
 		for (IntelehealthShrSyncLog failed : due) {
-			IntelehealthShrSyncLog attempt = null;
-			try {
-				supersedeRetrySource(failed);
-				attempt = startRetryAttempt(failed);
-				if (pushStoredBundle(attempt, failed, "sync retry")) {
-					processed++;
-				}
-			}
-			catch (Exception ex) {
-				LOG.error("SHR sync retry failed for log id {}: {}", failed.getId(), ex.getMessage(), ex);
-				IntelehealthShrSyncLog row = attempt != null ? attempt : failed;
-				markFailed(row, null, ex.getMessage(), false);
+			if (retryRunner.replayOne(failed)) {
+				processed++;
 			}
 		}
 		return processed;
 	}
 	
-	private boolean pushStoredBundle(IntelehealthShrSyncLog pushRow, IntelehealthShrSyncLog logContext, String operationLabel) {
-		if (visitSyncPush == null) {
-			LOG.error("shrVisitSyncPush not available; cannot replay visit push for log id {}", pushRow.getId());
-			markFailed(pushRow, null, "Visit sync push service not available", false);
+	/**
+	 * Retries one failed sync-log row (called inside {@link ShrSyncLogRetryRunner}'s isolated
+	 * transaction).
+	 */
+	@Override
+	public boolean replaySingleFailedRow(IntelehealthShrSyncLog failed) {
+		IntelehealthShrSyncLog attempt = null;
+		try {
+			supersedeRetrySource(failed);
+			attempt = resolveRetryAttemptRow(failed);
+			pushStoredBundle(attempt, "sync retry");
+			return isTerminalStatus(attempt.getStatus());
+		}
+		catch (Exception ex) {
+			LOG.error("SHR sync retry failed for log id {} visit {}: {}", failed.getId(), failed.getVisitUuid(),
+			    ex.getMessage(), ex);
+			if (attempt != null && attempt.getId() != null) {
+				markFailed(attempt, null, ex.getMessage(), false);
+				return isTerminalStatus(attempt.getStatus());
+			}
+			if (failed.getId() != null) {
+				markFailed(failed, null, ex.getMessage(), false);
+				return isTerminalStatus(failed.getStatus());
+			}
 			return false;
 		}
-		if (StringUtils.isBlank(pushRow.getVisitUuid())) {
-			markFailed(pushRow, null, "Missing visit UUID for " + operationLabel, true);
-			return false;
+		finally {
+			if (attempt != null && attempt.getId() == null) {
+				repository.evict(attempt);
+			}
 		}
-		return visitSyncPush.pushVisitForSyncLog(pushRow, operationLabel);
 	}
 	
-	private IntelehealthShrSyncLog startRetryAttempt(IntelehealthShrSyncLog failed) {
+	private IntelehealthShrSyncLog resolveRetryAttemptRow(IntelehealthShrSyncLog failed) {
+		String visitUuid = failed.getVisitUuid();
+		IntelehealthShrSyncLog openPending = repository.findOpenPendingForVisit(visitUuid);
+		if (openPending != null) {
+			LOG.info("Reusing open PENDING sync log id={} attempt={} for visit {}", openPending.getId(),
+			    openPending.getAttemptNumber(), visitUuid);
+			return openPending;
+		}
+		int nextAttempt = repository.nextAttemptNumberForVisit(visitUuid);
+		IntelehealthShrSyncLog existing = repository.findByVisitAndAttempt(visitUuid, nextAttempt);
+		if (existing != null) {
+			LOG.warn("Sync log visit={} attempt={} already exists (id={}, status={}); reusing row", visitUuid, nextAttempt,
+			    existing.getId(), existing.getStatus());
+			return existing;
+		}
+		return createRetryAttempt(failed, nextAttempt);
+	}
+	
+	private IntelehealthShrSyncLog createRetryAttempt(IntelehealthShrSyncLog failed, int attemptNumber) {
 		IntelehealthShrSyncLog attempt = new IntelehealthShrSyncLog();
 		attempt.setVisitUuid(failed.getVisitUuid());
 		attempt.setTriggerEncounterUuid(failed.getTriggerEncounterUuid());
-		attempt.setAttemptNumber(failed.getAttemptNumber() + 1);
+		attempt.setAttemptNumber(attemptNumber);
 		attempt.setRequestBundle(null);
 		attempt.setStatus(ShrSyncLogStatus.PENDING);
 		Date now = new Date();
@@ -262,6 +297,32 @@ public class ShrSyncLogServiceImpl implements ShrSyncLogService {
 		return attempt;
 	}
 	
+	private void pushStoredBundle(IntelehealthShrSyncLog pushRow, String operationLabel) {
+		if (visitSyncPush == null) {
+			LOG.error("shrVisitSyncPush not available; cannot replay visit push for log id {}", pushRow.getId());
+			markFailed(pushRow, null, "Visit sync push service not available", false);
+			return;
+		}
+		if (StringUtils.isBlank(pushRow.getVisitUuid())) {
+			markFailed(pushRow, null, "Missing visit UUID for " + operationLabel, true);
+			return;
+		}
+		visitSyncPush.pushVisitForSyncLog(pushRow, operationLabel);
+		finalizeAttemptOutcome(pushRow);
+	}
+	
+	/**
+	 * Closes orphan {@code PENDING} rows when a push delegate returns {@code false} without calling
+	 * {@link #markSuccess} / {@link #markFailed} (otherwise {@link #findPendingAwaitingPush}
+	 * retries them forever).
+	 */
+	private void ensurePendingAttemptRecorded(IntelehealthShrSyncLog row, String reason) {
+		if (row == null || row.getStatus() != ShrSyncLogStatus.PENDING || row.getCompletedAt() != null) {
+			return;
+		}
+		markFailed(row, null, reason, false);
+	}
+	
 	private void notifyPermanentFailure(IntelehealthShrSyncLog row) {
 		if (adminAlertService != null) {
 			adminAlertService.alertPermanentPushFailure(row);
@@ -270,11 +331,50 @@ public class ShrSyncLogServiceImpl implements ShrSyncLogService {
 	
 	private void supersedeRetrySource(IntelehealthShrSyncLog source) {
 		source.setNextRetryAt(null);
-		if (source.getStatus() == ShrSyncLogStatus.FAILED_PERMANENT) {
-			source.setStatus(ShrSyncLogStatus.FAILED);
+		if (source.getStatus() == ShrSyncLogStatus.FAILED || source.getStatus() == ShrSyncLogStatus.FAILED_PERMANENT) {
+			source.setStatus(ShrSyncLogStatus.SUPERSEDED);
 		}
 		source.setUpdatedAt(new Date());
 		repository.save(source);
+	}
+	
+	/**
+	 * Ensures the attempt row left {@link ShrSyncLogStatus#PENDING} after push (success or
+	 * failure).
+	 */
+	private void finalizeAttemptOutcome(IntelehealthShrSyncLog attempt) {
+		if (attempt == null) {
+			return;
+		}
+		if (attempt.getId() != null) {
+			IntelehealthShrSyncLog persisted = repository.findById(attempt.getId());
+			if (persisted != null) {
+				copyOutcomeFields(persisted, attempt);
+			}
+		}
+		if (isTerminalStatus(attempt.getStatus())) {
+			LOG.info("SHR sync log id={} visit={} attempt={} outcome={}", attempt.getId(), attempt.getVisitUuid(),
+			    attempt.getAttemptNumber(), attempt.getStatus());
+			return;
+		}
+		ensurePendingAttemptRecorded(attempt, "SHR visit push completed without recording sync log outcome");
+	}
+	
+	static void copyOutcomeFields(IntelehealthShrSyncLog from, IntelehealthShrSyncLog to) {
+		to.setStatus(from.getStatus());
+		to.setCompletedAt(from.getCompletedAt());
+		to.setNextRetryAt(from.getNextRetryAt());
+		to.setFailureReason(from.getFailureReason());
+		to.setHttpStatusCode(from.getHttpStatusCode());
+		to.setResponseBundle(from.getResponseBundle());
+		to.setResourceMap(from.getResourceMap());
+		to.setShrBundleId(from.getShrBundleId());
+		to.setUpdatedAt(from.getUpdatedAt());
+	}
+	
+	private static boolean isTerminalStatus(ShrSyncLogStatus status) {
+		return status == ShrSyncLogStatus.SUCCESS || status == ShrSyncLogStatus.FAILED
+		        || status == ShrSyncLogStatus.FAILED_PERMANENT;
 	}
 	
 	static boolean isSuccess(FhirResponse response) {

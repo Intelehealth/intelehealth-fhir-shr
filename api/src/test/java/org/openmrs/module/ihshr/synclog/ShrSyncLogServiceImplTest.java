@@ -3,6 +3,7 @@ package org.openmrs.module.ihshr.synclog;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ public class ShrSyncLogServiceImplTest {
 		TrackingRepository repository = new TrackingRepository();
 		setField(service, "repository", repository);
 		setField(service, "publishedConfigShrSyncGateService", new FixedShrSyncGate(false));
+		bindDirectRetryRunner(service);
 		
 		int processed = service.runSyncCycle(10);
 		
@@ -74,6 +76,7 @@ public class ShrSyncLogServiceImplTest {
 		setField(service, "repository", repository);
 		setField(service, "visitSyncPush", visitSyncPush);
 		setField(service, "publishedConfigShrSyncGateService", new FixedShrSyncGate(true));
+		bindDirectRetryRunner(service);
 		
 		IntelehealthShrSyncLog deferred = pendingRow(1);
 		deferred.setId(1L);
@@ -87,6 +90,7 @@ public class ShrSyncLogServiceImplTest {
 		assertEquals(2, processed);
 		assertEquals(2, visitSyncPush.pushCalls);
 		assertEquals(ShrSyncLogStatus.SUCCESS, deferred.getStatus());
+		assertEquals(ShrSyncLogStatus.SUPERSEDED, failed.getStatus());
 		assertNull(failed.getNextRetryAt());
 		assertEquals(ShrSyncLogStatus.SUCCESS, findSavedRetryAttempt(repository.savedRows).getStatus());
 	}
@@ -98,6 +102,7 @@ public class ShrSyncLogServiceImplTest {
 		setField(service, "repository", repository);
 		setField(service, "visitSyncPush", new Http500VisitSyncPush(service));
 		setField(service, "publishedConfigShrSyncGateService", new FixedShrSyncGate(true));
+		bindDirectRetryRunner(service);
 		
 		IntelehealthShrSyncLog failed = failedRow(1);
 		failed.setId(1L);
@@ -105,12 +110,59 @@ public class ShrSyncLogServiceImplTest {
 		
 		int processed = service.runSyncCycle(10);
 		
-		assertEquals(0, processed);
+		assertEquals(1, processed);
+		assertEquals(ShrSyncLogStatus.SUPERSEDED, failed.getStatus());
 		assertNull(failed.getNextRetryAt());
 		IntelehealthShrSyncLog attempt2 = findSavedRetryAttempt(repository.savedRows);
 		assertEquals(ShrSyncLogStatus.FAILED, attempt2.getStatus());
 		assertNotNull(attempt2.getNextRetryAt());
 		assertEquals(Integer.valueOf(500), attempt2.getHttpStatusCode());
+	}
+	
+	@Test
+	public void runSyncCycle_closesOrphanPendingRowWhenPushReturnsFalse() throws Exception {
+		ShrSyncLogServiceImpl service = new ShrSyncLogServiceImpl();
+		TrackingRepository repository = new TrackingRepository();
+		setField(service, "repository", repository);
+		setField(service, "visitSyncPush", new UnrecordedPush());
+		setField(service, "publishedConfigShrSyncGateService", new FixedShrSyncGate(true));
+		bindDirectRetryRunner(service);
+		
+		IntelehealthShrSyncLog deferred = pendingRow(1);
+		deferred.setId(1L);
+		repository.pendingRows = Collections.singletonList(deferred);
+		
+		int processed = service.runSyncCycle(10);
+		
+		assertEquals(1, processed);
+		assertEquals(ShrSyncLogStatus.FAILED, deferred.getStatus());
+		assertNotNull(deferred.getNextRetryAt());
+	}
+	
+	@Test
+	public void replaySingleFailedRow_reusesExistingOpenPendingAttempt() throws Exception {
+		ShrSyncLogServiceImpl service = new ShrSyncLogServiceImpl();
+		TrackingRepository repository = new TrackingRepository();
+		RecordingVisitSyncPush visitSyncPush = new RecordingVisitSyncPush();
+		setField(service, "repository", repository);
+		setField(service, "visitSyncPush", visitSyncPush);
+		bindDirectRetryRunner(service);
+		
+		IntelehealthShrSyncLog failed = failedRow(1);
+		failed.setId(1L);
+		failed.setVisitUuid("visit-dup");
+		IntelehealthShrSyncLog openAttempt = pendingRow(2);
+		openAttempt.setId(2L);
+		openAttempt.setVisitUuid("visit-dup");
+		repository.savedRows.add(openAttempt);
+		
+		boolean processed = service.replaySingleFailedRow(failed);
+		
+		assertTrue(processed);
+		assertEquals(ShrSyncLogStatus.SUPERSEDED, failed.getStatus());
+		assertEquals(ShrSyncLogStatus.SUCCESS, openAttempt.getStatus());
+		assertEquals(1, visitSyncPush.pushCalls);
+		assertEquals(2, repository.savedRows.size());
 	}
 	
 	@Test
@@ -121,6 +173,7 @@ public class ShrSyncLogServiceImplTest {
 		setField(service, "repository", repository);
 		setField(service, "visitSyncPush", visitSyncPush);
 		setField(service, "publishedConfigShrSyncGateService", new FixedShrSyncGate(true));
+		bindDirectRetryRunner(service);
 		
 		IntelehealthShrSyncLog legacy = failedPermanentRow(1);
 		legacy.setId(18L);
@@ -129,7 +182,7 @@ public class ShrSyncLogServiceImplTest {
 		int processed = service.runSyncCycle(10);
 		
 		assertEquals(1, processed);
-		assertEquals(ShrSyncLogStatus.FAILED, legacy.getStatus());
+		assertEquals(ShrSyncLogStatus.SUPERSEDED, legacy.getStatus());
 		assertNull(legacy.getNextRetryAt());
 		IntelehealthShrSyncLog retryAttempt = findSavedRetryAttempt(repository.savedRows);
 		assertEquals(2, retryAttempt.getAttemptNumber());
@@ -178,6 +231,16 @@ public class ShrSyncLogServiceImplTest {
 		field.set(target, value);
 	}
 	
+	private static void bindDirectRetryRunner(ShrSyncLogServiceImpl service) throws Exception {
+		ShrSyncLogRetryRunner runner = new ShrSyncLogRetryRunner() {
+			@Override
+			public boolean replayOne(IntelehealthShrSyncLog failed) {
+				return service.replaySingleFailedRow(failed);
+			}
+		};
+		setField(service, "retryRunner", runner);
+	}
+	
 	private static final class FixedShrSyncGate extends PublishedConfigShrSyncGateService {
 		
 		private final boolean enabled;
@@ -202,6 +265,14 @@ public class ShrSyncLogServiceImplTest {
 		public void alertPermanentPushFailure(IntelehealthShrSyncLog row) {
 			alertCalls++;
 			lastRow = row;
+		}
+	}
+	
+	private static final class UnrecordedPush implements ShrVisitSyncPushContract {
+		
+		@Override
+		public boolean pushVisitForSyncLog(IntelehealthShrSyncLog pushRow, String operationLabel) {
+			return false;
 		}
 	}
 	
@@ -231,6 +302,7 @@ public class ShrSyncLogServiceImplTest {
 		public boolean pushVisitForSyncLog(IntelehealthShrSyncLog pushRow, String operationLabel) {
 			pushCalls++;
 			pushRow.setStatus(ShrSyncLogStatus.SUCCESS);
+			pushRow.setCompletedAt(new Date());
 			return true;
 		}
 	}
@@ -251,7 +323,30 @@ public class ShrSyncLogServiceImplTest {
 		
 		@Override
 		public void save(IntelehealthShrSyncLog row) {
+			if (row.getId() == null) {
+				row.setId(nextId++);
+				savedRows.add(row);
+				return;
+			}
+			for (int i = 0; i < savedRows.size(); i++) {
+				if (row.getId().equals(savedRows.get(i).getId())) {
+					savedRows.set(i, row);
+					return;
+				}
+			}
 			savedRows.add(row);
+		}
+		
+		private long nextId = 1L;
+		
+		@Override
+		public IntelehealthShrSyncLog findById(Long id) {
+			for (IntelehealthShrSyncLog row : savedRows) {
+				if (id != null && id.equals(row.getId())) {
+					return row;
+				}
+			}
+			return null;
 		}
 		
 		@Override
@@ -272,8 +367,46 @@ public class ShrSyncLogServiceImplTest {
 		}
 		
 		@Override
+		public IntelehealthShrSyncLog findByVisitAndAttempt(String visitUuid, int attemptNumber) {
+			for (IntelehealthShrSyncLog row : savedRows) {
+				if (visitUuid.equals(row.getVisitUuid()) && row.getAttemptNumber() == attemptNumber) {
+					return row;
+				}
+			}
+			return null;
+		}
+		
+		@Override
+		public IntelehealthShrSyncLog findOpenPendingForVisit(String visitUuid) {
+			IntelehealthShrSyncLog latest = null;
+			for (IntelehealthShrSyncLog row : savedRows) {
+				if (!visitUuid.equals(row.getVisitUuid())) {
+					continue;
+				}
+				if (row.getStatus() == ShrSyncLogStatus.PENDING && row.getCompletedAt() == null
+				        && row.getHttpStatusCode() == null) {
+					if (latest == null || row.getAttemptNumber() > latest.getAttemptNumber()) {
+						latest = row;
+					}
+				}
+			}
+			return latest;
+		}
+		
+		@Override
+		public void evict(IntelehealthShrSyncLog row) {
+			// no-op for unit tests
+		}
+		
+		@Override
 		public int nextAttemptNumberForVisit(String visitUuid) {
-			return 2;
+			int max = 0;
+			for (IntelehealthShrSyncLog row : savedRows) {
+				if (visitUuid.equals(row.getVisitUuid())) {
+					max = Math.max(max, row.getAttemptNumber());
+				}
+			}
+			return max + 1;
 		}
 	}
 }

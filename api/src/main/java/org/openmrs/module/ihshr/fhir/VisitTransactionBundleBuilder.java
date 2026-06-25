@@ -13,8 +13,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.hl7.fhir.r4.model.Bundle;
 import org.hl7.fhir.r4.model.Device;
 import org.hl7.fhir.r4.model.Encounter;
+import org.hl7.fhir.r4.model.Location;
 import org.hl7.fhir.r4.model.Medication;
 import org.hl7.fhir.r4.model.Organization;
+import org.hl7.fhir.r4.model.Practitioner;
 import org.hl7.fhir.r4.model.Provenance;
 import org.hl7.fhir.r4.model.Reference;
 import org.hl7.fhir.r4.model.Resource;
@@ -131,6 +133,20 @@ public class VisitTransactionBundleBuilder {
 			}
 		}
 		return encounters;
+	}
+	
+	/**
+	 * Whether a {@code PUT} entry for {@code {fhirType}/{id}} is already queued in this builder.
+	 */
+	public boolean hasPutResource(String fhirType, String rawId) {
+		if (StringUtils.isBlank(fhirType) || StringUtils.isBlank(rawId)) {
+			return false;
+		}
+		String id = VisitPushResourceIds.toFhirResourceId(rawId.trim());
+		if (StringUtils.isBlank(id)) {
+			return false;
+		}
+		return entriesByKey.containsKey(Bundle.HTTPVerb.PUT.toCode() + " " + fhirType + "/" + id);
 	}
 	
 	/**
@@ -296,12 +312,13 @@ public class VisitTransactionBundleBuilder {
 	private static boolean isClinicalResource(org.hl7.fhir.r4.model.Resource resource) {
 		return !(resource instanceof Provenance) && !(resource instanceof org.hl7.fhir.r4.model.Patient)
 		        && !(resource instanceof Device) && !(resource instanceof Organization)
-		        && !(resource instanceof org.hl7.fhir.r4.model.Practitioner);
+		        && !(resource instanceof Practitioner) && !(resource instanceof Location);
 	}
 	
 	private static boolean requiresPatientSubject(Resource resource) {
 		// Catalog/supporting resources referenced by clinical entries (e.g. MedicationRequest.medication).
-		return !(resource instanceof Medication);
+		return !(resource instanceof Medication) && !(resource instanceof Practitioner)
+		        && !(resource instanceof Location);
 	}
 	
 	private boolean ensurePatient(Reference subject, String logPrefix) {
